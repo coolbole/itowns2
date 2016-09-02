@@ -10,13 +10,16 @@ import * as THREE from 'three';
 import defaultValue from 'Core/defaultValue';
 import Projection from 'Core/Geographic/Projection';
 import RendererConstant from 'Renderer/RendererConstant';
-import {chooseNextLevelToFetch} from 'Scene/LayerUpdateStrategy';
+import { chooseNextLevelToFetch } from 'Scene/LayerUpdateStrategy';
+import LayerUpdateState from 'Scene/LayerUpdateState';
+import { CancelledCommandException } from 'Core/Commander/ManagerCommands';
 import {l_ELEVATION, l_COLOR} from 'Globe/TileMesh';
 
 export const SSE_SUBDIVISION_THRESHOLD = 6.0;
 
-function NodeProcess(camera, ellipsoid, bbox) {
+function NodeProcess(scene, camera, ellipsoid, bbox) {
     //Constructor
+    this.scene = scene;
 
     this.bbox = defaultValue(bbox, new BoundingBox(MathExt.PI_OV_TWO + MathExt.PI_OV_FOUR, MathExt.PI + MathExt.PI_OV_FOUR, 0, MathExt.PI_OV_TWO));
 
@@ -26,29 +29,6 @@ function NodeProcess(camera, ellipsoid, bbox) {
     this.cV = new THREE.Vector3();
     this.projection = new Projection();
 }
-
-/**
- * @documentation: Apply backface culling on node, change visibility; return true if the node is visible
- * @param {type} node   : node to cull
- * @param {type} camera : camera for the culling
- * @returns {Boolean}
- */
-NodeProcess.prototype.backFaceCulling = function(node, camera) {
-    var normal = camera.direction;
-    for (var n = 0; n < node.normals().length; n++) {
-
-        var dot = normal.dot(node.normals()[n]);
-        if (dot > 0) {
-            node.visible = true;
-            return true;
-        }
-    }
-
-    //??node.visible = true;
-
-    return node.visible;
-
-};
 
 /**
  * @documentation:
@@ -177,16 +157,8 @@ NodeProcess.prototype.refineNodeLayers = function(node, camera, params) {
     ];
 
     for (let i=0; i<2; i++) {
-        if (node.pendingLayers[i] === undefined
-            && (!node.loaded || node.downScaledLayer(i))) {
-
-            node.pendingLayers[i] = true;
-
-            layerFunctions[i](params.tree, node, params.layersConfig, !node.loaded).then(
-                // reset the flag, regardless of the request success/failure
-                function() { node.pendingLayers[i] = undefined; },
-                function() { node.pendingLayers[i] = undefined; }
-            );
+        if (!node.loaded || node.isLayerTypeImprovable(i)) {
+            layerFunctions[i](this.scene, params.tree, node, params.layersConfig, !node.loaded);
         }
     }
 };
@@ -223,9 +195,10 @@ function findAncestorWithValidTextureForLayer(node, layerType, layer) {
     }
 }
 
-function updateNodeImagery(quadtree, node, layersConfig, force) {
+function updateNodeImagery(scene, quadtree, node, layersConfig, force) {
     let promises = [];
 
+    const ts = Date.now();
     const colorLayers = layersConfig.getColorLayers();
     for (let i = 0; i < colorLayers.length; i++) {
         let layer = colorLayers[i];
@@ -237,6 +210,15 @@ function updateNodeImagery(quadtree, node, layersConfig, force) {
         if (!layer.tileInsideLimit(node, layer)) {
             continue;
         }
+
+        if (node.layerUpdateState[layer.id] === undefined) {
+            node.layerUpdateState[layer.id] = new LayerUpdateState();
+        }
+
+        if (!node.layerUpdateState[layer.id].canTryUpdate(ts)) {
+            continue;
+        }
+
         if (!force) {
             // does this tile needs a new texture?
             if (!node.downScaledColorLayer(layer.id)) {
@@ -270,6 +252,8 @@ function updateNodeImagery(quadtree, node, layersConfig, force) {
             }
         }
 
+        node.layerUpdateState[layer.id].try();
+
         promises.push(quadtree.interCommand.request(args, node, refinementCommandCancellationFn).then(
             function(result) {
                 let level = args.ancestor ? args.ancestor.level : node.level;
@@ -290,23 +274,33 @@ function updateNodeImagery(quadtree, node, layersConfig, force) {
                     // and stop retrying after X attempts.
                 }
 
+                node.layerUpdateState[layer.id].success();
+
                 return result;
+            },
+            function(err) {
+                if (err instanceof CancelledCommandException) {
+                    node.layerUpdateState[layer.id].success();
+                } else {
+                    node.layerUpdateState[layer.id].failure(Date.now());
+                    scene.notifyChange(node.layerUpdateState[layer.id].waitDurationUntilNextTry());
+                }
             }
         ));
     }
 
-    return Promise.all(promises).then(function() {
+    Promise.all(promises).then(function() {
         if (node.parent) {
             node.loadingCheck();
         }
-        return node;
     });
 }
 
-function updateNodeElevation(quadtree, node, layersConfig, force) {
+function updateNodeElevation(scene, quadtree, node, layersConfig, force) {
     // Elevation is currently handled differently from color layers.
     // This is caused by a LayeredMaterial limitation: only 1 elevation texture
     // can be used (where a tile can have N textures x M layers)
+    const ts = Date.now();
     const elevationLayers = layersConfig.getElevationLayers();
     let bestLayer = null;
     let ancestor = null;
@@ -316,7 +310,7 @@ function updateNodeElevation(quadtree, node, layersConfig, force) {
     // Step 0: currentElevevation is -1 BUT material.nbTextures[l_ELEVATION] is > 0
     // means that we already tried and failed to download an elevation texture
     if (currentElevation == -1 && 0 < node.material.nbTextures[l_ELEVATION]) {
-        return Promise.resolve(node);
+        return;
     }
 
     // First step: if currentElevation is empty (level is -1), we *must* use the texture from
@@ -328,6 +322,15 @@ function updateNodeElevation(quadtree, node, layersConfig, force) {
             let layer = elevationLayers[i];
 
             if (currentElevation === -1) {
+
+                if (node.layerUpdateState[layer.id] === undefined) {
+                    node.layerUpdateState[layer.id] = new LayerUpdateState();
+                }
+
+                if (!node.layerUpdateState[layer.id].canTryUpdate(ts)) {
+                    continue;
+                }
+
                 let a = findAncestorWithValidTextureForLayer(node, l_ELEVATION, layer);
 
                 if (a != null) {
@@ -356,6 +359,18 @@ function updateNodeElevation(quadtree, node, layersConfig, force) {
                 continue;
             }
 
+            if (node.layerUpdateState[layer.id] === undefined) {
+                node.layerUpdateState[layer.id] = new LayerUpdateState();
+            }
+
+            if (!node.layerUpdateState[layer.id].canTryUpdate(ts)) {
+                // If we'd use continue, we could have 2 parallel elevation layers updating
+                // at the same time. So we're forced to break here.
+                // TODO: if the first layer chosen ends up stalled in error then we'll never try
+                // the second one...
+                break;
+            }
+
             let targetLevel = chooseNextLevelToFetch(layer.updateStrategy.type, node.level, currentElevation, layer.updateStrategy.options);
             if (targetLevel <= currentElevation) {
                 continue;
@@ -371,28 +386,37 @@ function updateNodeElevation(quadtree, node, layersConfig, force) {
     if (bestLayer != null) {
         let args = { 'layer': bestLayer, ancestor };
 
-        return quadtree.interCommand.request(args, node, refinementCommandCancellationFn).then(function(terrain) {
-            if (node.material === null) {
-                return;
+        node.layerUpdateState[bestLayer.id].try();
+
+        quadtree.interCommand.request(args, node, refinementCommandCancellationFn).then(
+            function(terrain) {
+                node.layerUpdateState[bestLayer.id].success();
+
+                if (node.material === null) {
+                    return;
+                }
+
+                if (terrain && terrain.texture) {
+                    terrain.texture.level = (ancestor || node).level;
+                }
+
+                if (terrain && terrain.max === undefined) {
+                    terrain.min = (ancestor || node).bbox.bottom();
+                    terrain.max = (ancestor || node).bbox.top();
+                }
+
+                node.setTextureElevation(terrain);
+            },
+            function(err) {
+                if (err instanceof CancelledCommandException) {
+                    node.layerUpdateState[bestLayer.id].success();
+                } else {
+                    node.layerUpdateState[bestLayer.id].failure(Date.now());
+                    scene.notifyChange(node.layerUpdateState[bestLayer.id].waitDurationUntilNextTry());
+                }
             }
-
-            if (terrain && terrain.texture) {
-                terrain.texture.level = (ancestor || node).level;
-            }
-
-            if (terrain && terrain.max === undefined) {
-                terrain.min = (ancestor || node).bbox.bottom();
-                terrain.max = (ancestor || node).bbox.top();
-            }
-
-            node.setTextureElevation(terrain);
-
-            return node;
-        });
+        );
     }
-
-    // No elevation texture available for this node, no need to wait for one.
-    return Promise.resolve(node);
 }
 
 
@@ -432,7 +456,7 @@ NodeProcess.prototype.processNode = function(node, camera, params) {
     }
 
     return wasVisible || isVisible;
-}
+};
 
 /**
  * @documentation: Cull node with frustrum and oriented bounding box of node
