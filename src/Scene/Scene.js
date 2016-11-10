@@ -119,18 +119,19 @@ Scene.prototype.updateScene3D = function() {
  * scene itself (e.g. camera movement).
  * Using a non-0 delay allows to delay update - useful to reduce CPU load for
  * non-interactive events (e.g: texture loaded)
+ * needsRedraw param indicates if notified change requires a full scene redraw.
  */
-Scene.prototype.notifyChange = function(delay) {
-    this.needsRedraw = true;
-
+Scene.prototype.notifyChange = function(delay, needsRedraw) {
     if (delay) {
-        window.setTimeout(this.scheduleUpdate.bind(this), delay);
+        window.setTimeout(function() { this.scheduleUpdate(needsRedraw); }.bind(this), delay);
     } else {
-        this.scheduleUpdate();
+        this.scheduleUpdate(needsRedraw);
     }
 };
 
-Scene.prototype.scheduleUpdate = function() {
+Scene.prototype.scheduleUpdate = function(forceRedraw) {
+    this.needsRedraw |= forceRedraw;
+
     if (this.renderingState !== RENDERING_ACTIVE) {
         this.renderingState = RENDERING_ACTIVE;
 
@@ -182,7 +183,6 @@ Scene.prototype.step = function() {
             if (this.needsRedraw || executedDuringUpdate > 0) {
                 this.renderScene3D();
                 this.lastRenderTime = ts;
-                this.needsRedraw = false;
             }
         }
 
@@ -194,6 +194,8 @@ Scene.prototype.step = function() {
  */
 Scene.prototype.renderScene3D = function() {
     this.gfxEngine.renderScene();
+    this.needsRedraw = false;
+
 };
 
 Scene.prototype.scene3D = function() {

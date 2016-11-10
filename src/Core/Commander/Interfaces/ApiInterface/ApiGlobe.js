@@ -374,7 +374,7 @@ ApiGlobe.prototype.createSceneGlobe = function(coordCarto, viewerDiv) {
 };
 
 ApiGlobe.prototype.update = function() {
-    this.scene.notifyChange();
+    this.scene.notifyChange(0, true);
 };
 
 // ApiGlobe.prototype.setLayerAtLevel = function(baseurl,layer/*,level*/) {

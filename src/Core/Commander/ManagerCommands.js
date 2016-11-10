@@ -40,12 +40,12 @@ function _instanciateQueue() {
                 function(result) {
                     this.counters.executing--;
                     cmd.resolve(result);
+                    // only count successul commands
                     this.counters.executed++;
                 }.bind(this),
                 function(err) {
                     this.counters.executing--;
                     cmd.reject(err);
-                    this.counters.executed++;
                     this.counters.failed++;
                 }.bind(this)
             );
@@ -89,7 +89,7 @@ ManagerCommands.prototype.runCommand = function(command, queue, executingCounter
         // We allow the scene to delay the update/repaint up to 100ms
         // to reduce CPU load (no need to perform an update on completion if we
         // know there's another one ending soon)
-        this.scene.notifyChange(100);
+        this.scene.notifyChange(100, true);
 
         // try to execute next command
         if (queue.counters.executing < this.maxCommandsPerHost) {
