@@ -2,7 +2,7 @@ const UPDATE_IDLE = 0;
 const UPDATE_PENDING = 1;
 const UPDATE_ERROR = 2;
 
-const PAUSE_BETWEEN_ERRORS = [ 1000.0, 3000.0, 7000.0, 6000.0 ];
+const PAUSE_BETWEEN_ERRORS = [ 1000.0, 3000.0, 7000.0, 60000.0 ];
 
 function LayerUpdateState() {
     this.state = UPDATE_IDLE;
@@ -24,7 +24,7 @@ LayerUpdateState.prototype.canTryUpdate = function(timestamp) {
         case UPDATE_ERROR:
         default: {
             let errorDuration = this.waitDurationUntilNextTry();
-            return (timestamp - this.lastErrorTimestamp) <= errorDuration;
+            return errorDuration <= (timestamp - this.lastErrorTimestamp);
         }
     }
 }
