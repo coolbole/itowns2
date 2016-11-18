@@ -27,6 +27,8 @@ import Capabilities from 'Core/System/Capabilities';
 import MobileMappingLayer from 'MobileMapping/MobileMappingLayer';
 import CustomEvent from 'custom-event';
 import {StyleManager} from 'Scene/Description/StyleManager';
+import Projection from 'Core/Geographic/Projection';
+
 
 var instanceScene = null;
 
@@ -46,6 +48,8 @@ function Scene(coordinate, ellipsoid, viewerDiv, debugMode, gLDebug) {
 
     this.layers = [];
     this.map = null;
+    this.featuresRaster = null;
+    this.featuresRasterOn = false;
 
     this.cameras = null;
     this.selectNodes = null;
@@ -95,6 +99,7 @@ Scene.prototype.getPickPosition = function(mouse) {
     return this.gfxEngine.getPickingPositionFromDepth(mouse);
 };
 
+<<<<<<< b57a29d6a52679d182ce606628509a811e2c2e8f
 Scene.prototype.getStyle = function(name) {
     return this.stylesManager.getStyle(name);
 };
@@ -105,6 +110,19 @@ Scene.prototype.removeStyle = function(name) {
 
 Scene.prototype.getStyles = function() {
     return this.stylesManager.getStyles();
+
+/*
+ * Return long lat at mouse click
+ */
+Scene.prototype.getPickPositionLonLat = function(mouse) {
+    
+    var pos = this.getPickPosition(mouse);
+    this.renderScene3D();
+    var posWGS84 = new Projection().cartesianToGeo(pos); 
+    var lonDeg = posWGS84.coordinate[0] / Math.PI * 180;
+    var latDeg = posWGS84.coordinate[1] / Math.PI * 180;
+   
+    return {x:lonDeg, y:latDeg};
 };
 
 Scene.prototype.getEllipsoid = function() {
@@ -299,6 +317,34 @@ Scene.prototype.setLightingPos = function(pos) {
 
     this.browserScene.updateMaterialUniform("lightPosition", this.lightingPos.clone().normalize());
     this.layers[0].node.updateLightingPos(this.lightingPos);
+};
+
+Scene.prototype.addFeaturesRaster = function(featuresRaster){
+    
+    this.featuresRasterOn = true;
+    this.featuresRaster = featuresRaster;
+    this.browserScene.updateMaterialUniform("rasterFeatures", 1);
+    this.browserScene.updateFeatureRasterLayer();
+};
+
+
+Scene.prototype.setFeaturesRasterOnOff = function(b){
+    
+    if(b != null) 
+        this.featuresRasterOn = b;
+    else
+        this.featuresRasterOn = !this.featuresRasterOn;
+    
+    this.browserScene.updateMaterialUniform("rasterFeatures", this.featuresRasterOn);//this.featuresRasterOn? 1:0);
+};
+
+Scene.prototype.getFeaturesRasterOnOff = function(){
+    
+    return this.featuresRasterOn;
+};
+
+Scene.prototype.getFeaturesRaster = function(){
+    return this.featuresRaster;
 };
 
 // Should be moved in time module: A single loop update registered object every n millisec

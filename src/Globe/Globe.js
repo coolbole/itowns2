@@ -17,6 +17,7 @@ import BasicMaterial from 'Renderer/BasicMaterial';
 import LayersConfiguration from 'Scene/LayersConfiguration';
 import * as THREE from 'three';
 import {SSE_SUBDIVISION_THRESHOLD} from 'Scene/NodeProcess';
+//import c3DEngine from 'Renderer/c3DEngine';
 
 
 /* eslint-disable */
@@ -197,6 +198,20 @@ Globe.prototype.setLayerVisibility = function(id, visible) {
     this.tiles.children[0].traverse(cO);
 };
 
+//TEMP
+Globe.prototype.setFeatureLayerVisibility = function(id, visible) {
+
+    this.layersConfiguration.setLayerVisibility(id, visible);
+
+    var cO = function(object) {
+        if (object.material.setFeatureLayerVisibility) {
+            object.material.setFeatureLayerVisibility(visible);
+        }
+    };
+    // children[0] is rootNode
+    this.tiles.children[0].traverse(cO);
+};
+
 Globe.prototype.updateLayersOrdering = function() {
     var sequence = this.layersConfiguration.getColorLayersIdOrderedBySequence();
 
@@ -252,4 +267,20 @@ Globe.prototype.setRealisticLightingOn = function(bool) {
     this.clouds.setLightingOn(bool);
 };
 
+Globe.prototype.createFeatureLayer = function(/*name*/){
+    var featureLayer = new Layer();
+    //featureLayer.setName(name)
+    var dataLayer = new THREE.Object3D();
+    featureLayer.add(dataLayer);
+    this.add(featureLayer);
+
+    return featureLayer;
+};
+/*
+Globe.prototype.updateFeatureHeights = function(featureLayer){
+
+    var pos = c3DEngine().getPickingPosition();//getPickingPositionFromDepth();//{x:1000,y:500});
+    //console.log(pos);
+};
+*/
 export default Globe;

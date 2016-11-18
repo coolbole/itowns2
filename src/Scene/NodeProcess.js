@@ -373,7 +373,7 @@ function updateNodeElevation(quadtree, node, layersConfig, force) {
             }
 
             node.setTextureElevation(terrain);
-
+            node.setRasterFeatures();
             return node;
         });
     }

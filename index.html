@@ -68,6 +68,14 @@ and open the template in the editor.
 
             Promise.all([imageryPromise, elevationPromise]).then(() => itowns.viewer.init());
 
+            itowns.viewer.addFeaturesLayer({
+                protocol:"kml",
+                id: "myKmlLayer",
+                style: "myStyle",
+                local:"true",
+                url: "data/croquisBig.kml"
+            });
+
             menuGlobe.addGUI('RealisticLighting',false,function(newValue) {itowns.viewer.setRealisticLightingOn(newValue);});
 
            	itowns.viewer.addEventListener('globe-loaded', function() {

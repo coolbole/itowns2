@@ -84,9 +84,8 @@ var LayeredMaterial = function(id) {
     BasicMaterial.call(this);
 
     let maxTexturesUnits =  gfxEngine().glParams.maxTexturesUnits;
-    let nbSamplers = Math.min(maxTexturesUnits-1,16-1);
+    let nbSamplers = 7;//Math.min(maxTexturesUnits-1,16-1);
     this.vertexShader = GlobeVS;
-
     this.fragmentShaderHeader +='const int   TEX_UNITS   = ' + nbSamplers.toString() + ';\n';
     this.fragmentShaderHeader += pitUV;
 
@@ -152,6 +151,73 @@ var LayeredMaterial = function(id) {
     // Light position
     this.uniforms.lightPosition = new THREE.Uniform(new THREE.Vector3(-0.5, 0.0, 1.0));
 
+    // Elevation texture
+    this.uniforms.dTextures_00 = {
+        type: "tv",
+        value: this.Textures[0]
+    };
+    this.uniforms.featureTexture = {
+        type: "t",
+        value: new THREE.Texture()
+    };
+    
+    this.uniforms.rasterFeatures = {
+         type: "i",
+         value: 0
+    };
+
+    // Color texture
+    this.uniforms.dTextures_01 = {
+        type: "tv",
+        value: this.Textures[1]
+    };
+
+    this.uniforms.nbTextures = {
+        type: "iv1",
+        value: this.nbTextures
+    };
+
+    this.uniforms.layerSequence = {
+        type: "iv1",
+        value: [0, 1, 2, 3, 4, 6, 7, 8]
+    };
+
+    this.uniforms.nColorLayer = {
+        type: "i",
+        value: 1
+    };
+
+    // PIT n Textures
+    // Projection
+    // Visible
+    // Opacity
+
+    this.uniforms.paramLayers = {
+        type: "v4v",
+        value: this.paramLayers
+    };
+
+    this.uniforms.paramBLayers = {
+        type: "v2v",
+        value: this.paramBLayers
+    };
+
+    this.uniforms.pitScale_L00 = {
+        type: "v3v",
+        value: this.pitScale[0]
+    };
+    this.uniforms.pitScale_L01 = {
+        type: "v3v",
+        value: this.pitScale[1]
+    };
+    this.uniforms.lightingOn = {
+            type: "i",
+            value: gfxEngine().lightingOn
+        };
+    this.uniforms.lightPosition = {
+        type: "v3",
+        value: new THREE.Vector3(-0.5, 0.0, 1.0)
+    };
     this.setUuid(id || 0);
     this.wireframe = false;
     //this.wireframe = true;
@@ -384,6 +450,14 @@ LayeredMaterial.prototype.setLayerTexturesCount = function(index, count) {
 
 LayeredMaterial.prototype.getLoadedTexturesCount = function() {
     return this.loadedTexturesCount[l_ELEVATION] + this.loadedTexturesCount[l_COLOR];
+
+LayeredMaterial.prototype.setFeatureLayerVisibility = function(visible) {
+
+    this.uniforms.rasterFeatures.value = visible;
+};
+
+LayeredMaterial.prototype.setNbLayersColor = function(n) {
+    this.uniforms.nColorLayer.value = n;
 };
 
 LayeredMaterial.prototype.isColorLayerDownscaled = function(layer,level) {
