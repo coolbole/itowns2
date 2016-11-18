@@ -6,10 +6,10 @@
 
 import Provider from 'Core/Commander/Providers/Provider';
 import IoDriverXML from 'Core/Commander/Providers/IoDriverXML';
-import * as THREE from 'THREE';
+//import * as THREE from 'THREE';
 //import KMZLoader from 'Renderer/ThreeExtented/KMZLoader';
 import FeatureToolBox from 'Renderer/ThreeExtented/FeatureToolBox';
-import BasicMaterial from 'Renderer/BasicMaterial';
+//import BasicMaterial from 'Renderer/BasicMaterial';
 import Togeojson from 'togeojson';
 
 
@@ -28,7 +28,7 @@ KML_Provider.prototype.constructor = KML_Provider;
 
 
 KML_Provider.prototype.parseKML = function(urlFile) {
-    
+
     return this.ioDriverXML.read(urlFile).then(function(result) {
         var geojson = Togeojson.kml(result);
         this.featureToolBox = new FeatureToolBox();
@@ -47,19 +47,18 @@ KML_Provider.prototype.parseKML = function(urlFile) {
  * @returns {undefined}
  */
 KML_Provider.prototype.showFeatureAttributesAtPos = function(p, mouse){
-    
+
     var att =   this.featureToolBox.showFeatureAttributesAtPos(p);
     var desc = att === "" ? "No Description" : att;
- 
+
     if(att !=="noIntersect") {
-        
         var canvas = document.createElement("canvas");
         canvas.width = 1920;
         canvas.height = 1080;
-        canvas.setAttribute("id", "canvasID");  
+        canvas.setAttribute("id", "canvasID");
         var ctx = canvas.getContext("2d");
-        
-        ctx.textAlign = 'center' 
+
+        ctx.textAlign = 'center';
         ctx.beginPath();
         ctx.globalAlpha = 0.50;
         ctx.font = "24px serif";
@@ -71,7 +70,7 @@ KML_Provider.prototype.showFeatureAttributesAtPos = function(p, mouse){
         ctx.fillStyle = "black";
         ctx.globalAlpha = .8;
         ctx.fillText(desc, mouse.x, mouse.y);
-        
+
         canvas.style.left = "0px";//mouse.x + "px";
         canvas.style.top  = "0px";//mouse.y + "px";
         canvas.style.position = "absolute";

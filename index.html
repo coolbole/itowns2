@@ -68,19 +68,45 @@ and open the template in the editor.
 
             Promise.all([imageryPromise, elevationPromise]).then(() => itowns.viewer.init());
 
-            itowns.viewer.addFeaturesLayer({
-                protocol:"kml",
-                id: "myKmlLayer",
-                style: "myStyle",
-                local:"true",
-                url: "data/croquisBig.kml"
-            });
+
 
             menuGlobe.addGUI('RealisticLighting',false,function(newValue) {itowns.viewer.setRealisticLightingOn(newValue);});
 
-           	itowns.viewer.addEventListener('globe-loaded', function() {
-            	console.log("Globe Loaded");
-        	});
+            itowns.viewer.addEventListener('globe-loaded', function() {
+
+            console.log("Globe Loaded");
+
+            // KML Test
+            itowns.viewer.addFeaturesLayer({
+               protocol:"kml",
+               id: "myKmlLayer",
+               style: "myStyle",
+               local:"true",
+               url: "data/croquis.kml"
+            });
+
+            });
+
+            // TODO: move in GuiTools
+            var removeLayer = function(nameLayer) {
+                if(itowns.viewer.removeImageryLayer(nameLayer)) {
+                    var controllerTodelete = [];
+
+                    for (var i in gui.__controllers) {
+                        var controller = gui.__controllers[i];
+
+                        if(controller.property === nameLayer || controller.property === nameLayer + '_Opacity') {
+                            controllerTodelete.push(controller);
+                        }
+                    }
+
+                    for (var i in controllerTodelete) {
+                        gui.remove(controllerTodelete[i]);
+                    }
+                }
+            }
+
+>>>>>>> added picking in rasterized polygons
         </script>
     </body>
 </html>

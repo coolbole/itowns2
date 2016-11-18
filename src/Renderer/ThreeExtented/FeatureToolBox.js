@@ -13,7 +13,6 @@ import GeoCoordinate, {UNIT} from 'Core/Geographic/GeoCoordinate';
 function FeatureToolBox() {
     this.size       = {x:6378137,y: 6356752.3142451793,z:6378137};
     this.ellipsoid  = new Ellipsoid(this.size);
-    
     this.arrPolygons = null;
     this.arrLines = null;
 }
@@ -485,66 +484,9 @@ FeatureToolBox.prototype.createCoordinateArray = function(feature) {
     return temp_array;
 };
 
-// Array not suported in IE
-    var fill = function(array,remp){
-
-        for(var i=0;i<array.length;i++)
-            array[i] = remp;
-    };
- 
-
-/*
-// Extract polygons and lines for raster rendering in GPU
-FeatureToolBox.prototype.extractFeatures = function(json) {
-    
-    //var MaxLines = 100;
-    var arrPolygons = [];
-    var arrLines = [];//Array(MaxLines);
-    var nbLines = 0;
-   // fill(arrLines, new THREE.Vector3());
-    var occPoly = 0;
-    var occLines = 0;
-    var jsonFeatures = this.createGeometryArray(json);
-    
-    for (var nFeature = 0; nFeature < jsonFeatures.length; nFeature++) {
-       
-        var feat = jsonFeatures[nFeature];
-        if (feat.type === 'LineString') {
-             for (var point_num = 0; point_num < feat.coordinates.length; point_num++) {
-                 var v = feat.coordinates[point_num];
-                 arrLines.push(new THREE.Vector3(v[0], v[1], occLines));
-                 nbLines++;
-             }
-             occLines++;
-         }
-         if (feat.type === 'Polygon') {
-             for (var point_num = 0; point_num < feat.coordinates.length; point_num++) {
-                 for( var p = 0; p < feat.coordinates[point_num].length; ++p ){
-                    var v = feat.coordinates[point_num][p];
-                    arrPolygons.push(new THREE.Vector3(v[0], v[1], occPoly));
-                }
-             }
-             occPoly++;
-         }
-    }
-    
-    return {lines: arrLines, nbLines:nbLines, polygons: arrPolygons};
-};
-*/
-
-function smoothstep(min, max, value) {
-  var x = Math.max(0, Math.min(1, (value-min)/(max-min)));
-  return x*x*(3 - 2*x);
-};
-
-
-function mix(x,y,a){
-    return x* (1-a) + y*a;
-};
-
 FeatureToolBox.prototype.intersectsegment = function( a, b, i, p){
 
-   var d = new THREE.Vector2(); 
+   var d = new THREE.Vector2();
    var e = new THREE.Vector2();
    d.x = b.x - a.x;
    d.y = b.y - a.y;
@@ -569,25 +511,25 @@ FeatureToolBox.prototype.intersectsegment = function( a, b, i, p){
  * @returns {undefined}
  */
 FeatureToolBox.prototype.inPolygon = function(p, arrPoints){
-    
+
     var k = new THREE.Vector2(6.,75.); //This point should be out of the polygon
     var nbintersections = 0;
     for(var i=0; i < arrPoints.length -1; i++){
 
-       var a = arrPoints[i]; 
+       var a = arrPoints[i];
        var b = arrPoints[i+1];//.xy;
-       var iseg = this.intersectsegment(a,b,k,p); 
+       var iseg = this.intersectsegment(a,b,k,p);
        nbintersections += iseg;
     }
-    return ((nbintersections % 2) === 1); 
+    return ((nbintersections % 2) === 1);
 };
 
 /**
- * 
+ *
  * display feature attribute information at position p (lonlat)
  */
 FeatureToolBox.prototype.showFeatureAttributesAtPos = function(p){
-    
+
     var intersect = false;
     var desc = "";
     var i=0;
@@ -595,81 +537,29 @@ FeatureToolBox.prototype.showFeatureAttributesAtPos = function(p){
         intersect = this.inPolygon(p, this.arrPolygons[i].polygon);
         i++;
     }
-    
+
     i--;
     if(intersect && this.arrPolygons[i].properties.description !== undefined){
         desc = this.arrPolygons[i].properties.description;
     }
-   
+
     if(!intersect) desc = "noIntersect";
-    
+
     return desc;
-
-}
-
-
-/*
- * coordOrigin of tile in wgs84
- * tileWH is tileSize in deg
- * p1 and p2, line extremities
- * thickness of line
- */
-FeatureToolBox.prototype.drawLineSAVE = function(coordOrigin, tileWH, p1, p2, thickness) {
-
-    //var tileWH = vec2(bbox.z - bbox.x, bbox.w - bbox.y);
-    //var currentCoord = vec2(bbox.x + vUv_WGS84.x * tileWH.x, bbox.y + vUv_WGS84.y * tileWH.y);
-    //var currentCoordDeg = currentCoord / PI * 180.;
-
-    var uv = coordOrigin ; //currentCoordDeg;// gl_FragCoord.xy / resolution.xy;
-
-    var a = Math.abs(distance(p1, uv));
-    var b = Math.abs(distance(p2, uv));
-    var c = Math.abs(distance(p1, p2));
-
-    if ( a >= c || b >=  c ) return 0.0;
-
-    var p = (a + b + c) * 0.5;
-
-    // median to (p1, p2) vector
-    var h = 2. / c * Math.sqrt( p * ( p - a) * ( p - b) * ( p - c));
-    return mix(1.0, 0.0, smoothstep(0.5 * thickness, 1.5 * thickness, h));
-};
-
-
-FeatureToolBox.prototype.drawLinesSAVE = function(coordOrigin, tileWH, arrPoints, thickness){
-    
-    var feat = 0.;
-    for( var i= 0; i< arrPoints.length -1; ++i){    //  return drawLine(vec2(6.840534210205076,45.92121428068), vec2(6.904134750366209,45.93273669875063));
-        //if(arrPoints[i+1].x != 0. && lineFeatures[i+1].y != 0.)
-        feat += drawLine(coordOrigin, tileWH, arrPoints[i].xy, arrPoints[i+1].xy, thickness);
-    }
-    return Math.min(feat,1.);
 }
 
 
 FeatureToolBox.prototype.drawLine = function(coordOrigin, tileWH, p1, p2, thickness, ctx, prop) {
-    
+
     var tilePx = 256;
     ctx.strokeStyle = prop.stroke; //"rgba(255, 0, 255, 0.5)";//"rgba(1,1,0,1)";
     ctx.lineWidth = prop["stroke-width"];
     ctx.globalAlpha = prop["stroke-opacity"];
-   // ctx["stroke-opacity"] = 0.2;
- //   console.log(ctx.strokeStyle);
     ctx.beginPath();
-  /*  ctx.moveTo(0, 0);
-                ctx.lineTo(200, 200);
-                ctx.stroke();*/
-   //console.log("aaaaaaaaaaaaaaaaaaaaaaaaaaaa",coordOrigin,p1,p2,tileWH);
-    /*if(p1.x >= coordOrigin.x && p1.x <= coordOrigin.x +  tileWH.x && 
-       p1.y >= coordOrigin.y && p1.y <= coordOrigin.y +  tileWH.y &&
-       p2.x >= coordOrigin.x && p2.x <= coordOrigin.x +  tileWH.x && 
-       p2.y >= coordOrigin.y && p2.y <= coordOrigin.y +  tileWH.y   ){
-   */
-            var a = p1.sub(coordOrigin);
-            var b = p2.sub(coordOrigin);
-            
-            a.divideScalar(tileWH.x).multiplyScalar(tilePx);
-            b.divideScalar(tileWH.x).multiplyScalar(tilePx);
+    var a = p1.sub(coordOrigin);
+    var b = p2.sub(coordOrigin);
+    a.divideScalar(tileWH.x).multiplyScalar(tilePx);
+    b.divideScalar(tileWH.x).multiplyScalar(tilePx);
    //      console.log("aa",coordOrigin,tileWH,p1,p2,a,b);
       //       if( (a.x>=0 && a.x<= tilePx && a.y >=0 && a.y <=tilePx)
       //          && (b.x>=0 && b.x<= tilePx && b.y >=0 && b.y <=tilePx)){
@@ -679,7 +569,6 @@ FeatureToolBox.prototype.drawLine = function(coordOrigin, tileWH, p1, p2, thickn
                 ctx.globalAlpha = 1.;
       //      }
    // }
- 
 
 };
 
@@ -702,7 +591,7 @@ FeatureToolBox.prototype.drawPolygon = function(polygon, coordOrigin, tileWH, ct
     // ctx["stroke-opacity"] = 0.8;
     // console.log(ctx.strokeStyle);
     ctx.beginPath();
- 
+
     for (var i = 0; i< polygon.length -1; ++i){
 
         var p1 = polygon[i];
@@ -731,22 +620,21 @@ FeatureToolBox.prototype.drawPolygon = function(polygon, coordOrigin, tileWH, ct
 
 // parameters in deg, vec2
 FeatureToolBox.prototype.createRasterImage = function(coordOrigin, tileWH, lines, polygons){
-    
-    
+
     var c = document.createElement('canvas');
-    c.width = 256; 
+    c.width = 256;
     c.height = 256;
     var ctx = c.getContext("2d");
     // Lines
     for (var j= 0; j< lines.length; ++j){
-        var line = lines[j].line; 
-        var properties = lines[j].properties; 
+        var line = lines[j].line;
+        var properties = lines[j].properties;
         for (var i= 0; i< line.length -1; ++i){
            this.drawLine(coordOrigin, tileWH, line[i].clone(), line[i+1].clone(), 4, ctx, properties);
         }
     }
     // Polygon
-    for (var i= 0; i< polygons.length; ++i){
+    for(i= 0; i< polygons.length; ++i){
         this.drawPolygon(polygons[i].polygon, coordOrigin, tileWH, ctx, polygons[i].properties);
     }
 
@@ -759,10 +647,10 @@ FeatureToolBox.prototype.createRasterImage = function(coordOrigin, tileWH, lines
 
 
 
- 
+
  // Extract polygons and lines for raster rendering in GPU
 FeatureToolBox.prototype.extractFeatures = function(json) {
-    
+
     var arrPolygons = [];
     var arrLines = [];
 
@@ -776,59 +664,56 @@ FeatureToolBox.prototype.extractFeatures = function(json) {
              }
              arrLines.push({line:arrLine, properties: feat.properties});
          }
-         
+
          if (feat.geometry.type === 'Polygon') {
-             var arrPolygon = [];
-             for (var point_num = 0; point_num < feat.geometry.coordinates.length; point_num++) {
-                 for( var p = 0; p < feat.geometry.coordinates[point_num].length; ++p ){
-                    var v = feat.geometry.coordinates[point_num][p];
-                    arrPolygon.push(new THREE.Vector2(v[0], v[1]));
+            var arrPolygon = [];
+            for (point_num = 0; point_num < feat.geometry.coordinates.length; point_num++) {
+                for( var p = 0; p < feat.geometry.coordinates[point_num].length; ++p ){
+                   v = feat.geometry.coordinates[point_num][p];
+                   arrPolygon.push(new THREE.Vector2(v[0], v[1]));
                 }
              }
              arrPolygons.push({polygon:arrPolygon, properties: feat.properties});
          }
     }
-    this.arrPolygons = arrPolygons; console.log("rrrr",this.arrPolygons);
+    this.arrPolygons = arrPolygons;//console.log(this.arrPolygons);
     this.arrLines = arrLines;
     return {lines: arrLines, polygons: arrPolygons};
 };
 
 
 FeatureToolBox.prototype.createFeaturesPoints = function(json){
-    
+
     var globalObject = new THREE.Object3D();
 
     for (var nFeature = 0; nFeature < json.features.length; nFeature++) {
            var feat = json.features[nFeature];
            if (feat.geometry.type === 'Point') {
-               console.log(feat);
+               //console.log(feat);
                var vertex = this.convertLonLatToWGS84(feat.geometry.coordinates);
                if (feat.properties.name != null){
-                   console.log(feat.properties.name);
+                   //console.log(feat.properties.name);
                    globalObject.add(this.createText(vertex, feat.properties));
                }else{
                    globalObject.add(this.createIcon(vertex));
                }
             }
        }
-       
      //  globalObject.add(new THREE.LineSegments(geometry, basicLineMaterial));
        return globalObject;
-
 };
 
 
 
 FeatureToolBox.prototype.processingGeoJSON = function(json) {
 
-    console.log(json);
+    //console.log(json);
     var jsonFeatures = this.createGeometryArray(json);
-    console.log(jsonFeatures);
+    //console.log(jsonFeatures);
     var coordinate_array = [];
     var globalObject = new THREE.Object3D();
     var geometry = new THREE.Geometry();
     var basicLineMaterial = new THREE.LineBasicMaterial({color : 0xff0000});
-    var bpoint = true;
     for (var nFeature = 0; nFeature < jsonFeatures.length; nFeature++) {
 	var point_num, segment_num, vertex;
         if (jsonFeatures[nFeature].type == 'Point') {
@@ -854,7 +739,6 @@ FeatureToolBox.prototype.processingGeoJSON = function(json) {
                 if(point_num>0 && point_num<coordinate_array.length-1) geometry.vertices.push(vertex);
             }
 
-            bpoint = false;
         }
 
         else if (jsonFeatures[nFeature].type == 'Polygon') {
@@ -867,7 +751,6 @@ FeatureToolBox.prototype.processingGeoJSON = function(json) {
                     if(point_num>0 && point_num<coordinate_array.length-1) geometry.vertices.push(vertex);
                 }
             }
-            bpoint = false;
         }
         else if (jsonFeatures[nFeature].type == 'MultiLineString') {
             for (segment_num = 0; segment_num < jsonFeatures[nFeature].coordinates.length; segment_num++) {
@@ -879,8 +762,6 @@ FeatureToolBox.prototype.processingGeoJSON = function(json) {
                     if(point_num>0 && point_num<coordinate_array.length-1) geometry.vertices.push(vertex);
                 }
             }
-
-            bpoint = false;
         }
         else if (jsonFeatures[nFeature].type == 'MultiPolygon') {
             for (var polygon_num = 0; polygon_num < jsonFeatures[nFeature].coordinates.length; polygon_num++) {
@@ -894,14 +775,12 @@ FeatureToolBox.prototype.processingGeoJSON = function(json) {
                     }
                 }
             }
-            bpoint = false;
         } else {
             throw new Error('The geoJSON is not valid.');
         }
     }
 
-    //var material;
-    
+
    // if(!bpoint){
         globalObject.add(new THREE.LineSegments(geometry, basicLineMaterial));
         return globalObject;//new THREE.LineSegments(geometry, material);
@@ -919,33 +798,32 @@ FeatureToolBox.prototype.processingGeoJSON = function(json) {
  * @returns {FeatureToolBox.prototype.createIcon.texture|THREE.Texture}
  */
 FeatureToolBox.prototype.createIcon = function(pos){
-    
+
     var image = document.createElement( 'img' );
     var texture = new THREE.Texture( image );
     image.onload = function()  {
         texture.needsUpdate = true;
     };
-    image.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAsCAYAAAAATWqyAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAABTtJREFUeNq8WGtsFUUU/rb3gtdCAykFG9AUDTQUKimhxUewEusrJYoBo4FfEgoqotHERH6oP9TGmJhIrIlWAf9hjAaEiME2pgFfVVpFii8sWqIQLLSx3EJLW7p+Z2Z2b2l7d/b23vZLTmZ2duacb2fmnDk7DlKA67rXs1hJKacsohRQppjXFygnKT9TDlH2O47zFzIFGnco91EOuqnjoBnr2Ow4FhIlLN6m3DykFTh3BGj/Doj/CfSe082xPCDnBmDWTUBeyXDVjZTHOUNHUiZCEs+weI0ySTV0/w0c2wa07gIungn+vOx8YN46oPhpYOp1Xms/5TmSeSMUERKImFnYqBoGuPRNL5LEW8BgX2rrmjWZZLYApS8BUW8r4T0zO5eTEjFr+S6lSjV0HgPqVwNdf6S30abNB+7aDeQWey3bKZtIxvU5DxvyrE/izJfAvuXpkxCIDtElOjWqjK2RM8LZWMbiG0oEnUc5kB7a14WMYvI04H56du5ieZKluZWz8r0/IyQh5TuKRH8cqFuTeRIC0Sm6xYbYok1j21+ahyhLVO3wC8D5VowbRLfY0FhibOulIavDLEoRZyD8sJDeMWBXKG5ZsIobsdDsg+OMq3u1m1u9KQo8zP45EqjRxOUpk6i50IRl4FuGjpZtwUoiMYa314GFj/EzIsN8n8v+C1e4kfvwcm+wnhsZY27xQ8oiWZpKrWRQB6tAElfxpKnjsCdGklDzG9HvpI/0DYLYEpsalVnmAAM6fgR62oMHl70C5N9mn3rpI32DILbEpkZ5ljlFgbPNFtebzij5VPhNKX1lTBASNtXSzPZ3cxCuvVOH7FTCu4yxeZDGbCES0z5+PniQ3uGpwTYmYTOWCPGTpgYP6u9OnYhtzBCbQkSH0NiM4EEdP6VOxDYmYbNLiJxQ1elFwYPaG3XQCn3QHddjgpCweUKI6K2bvzw4YROf//rJob6fZl/H2FRoFiINfqo3qyzYwD8MVIeYLw32J+8j76SP9A2C2BKbGg1CZL+EF/W4YKP9a3/fCeyhkrY9DOOXEu1SlzZ5J31sSNjqURm/OfQkY9qgvkYOvXhbuH0g505Oga7HT9rPF9+t5+pDL0ulwzt46FV5ROax+JUSRRtP0LoHMK64+xNg7iqVEVOKSKRVxRGpsKhRnaRD4SPjR0J0axKCGmP7ilQxm4X8d8xXmfvHJZlPkCR3WfODl9FLMlxCIhevSJ5Nwzo1XdKxYpe3hpmB6BKdmoS43VqPxIgsni+aWOg8biZ3f+nLmSMiuvKWek/P01az7QdLyNVT7lC/l59WAKcb0iMxhzpW1nvmvpDtSiKD1l9OkpnDgv8UyMWFU9wvTP8vdY6NhJwnD1JVtso2OiiLSeL0iJUbNfg6zikVVwRTyOn2HWOfjfLtHgnBhtFIJCViyNDZUatdmnGlaFPqJIoe1WM1aqlz71ivJbLNobgAA9zgu7nZ/vstHAk5WVdzaPRqmGC5lER6kjpV4OWJdq+1kkshSk4VH9izcy/bV66qSPQZV+0J9G7rTY6+XNmqHmYwyJVV24kse1X31dhKHdasygkzy+a64oC4nWr47F4e858nSbLv4V/KAe9JKpVDrx/SImLIXMOiRUKdujESl+49O8xVZxpXzVc/C/I/RxL/hgq8YYkYhev9q6kVO4d9B+sr3vdICNaHJTHWW8Ya/87wqy2uWwstUk/gTYw3aCRGOarMDfS67kfFWqSuIe9imAjQEC272nJHixYNaSvGRIIGN49ywbsZEw1zI11N6TZSHeaGORn+F2AAJtRIMx4t+hUAAAAASUVORK5CYII=';
+    image.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABmJLR0QAAAAAAAD5Q7t/AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4AsVDRIojx5s5AAABPVJREFUWMOtlmtsk1UYx3+nb7uVdu0ulg2oso2xjXF1kzmMsE3GRQSBRRMxJvhBY0xITKYoKHzx8sEoihIjGoyJBiKoYMQwQwK4DVHwE1nGpbKxdVvoZrbR0W20b9v3+KGdtHTbu1X+ycmbN+fy/5/ncp5HSCkZDxK4NXSbyy3NtLW1UbyowtHe0b6ipDC3qtBpW2IW/izQDCEx7Za7T716saX199y8gt86W5s7rBYzS8sfITPDhkGMS4HQEzDoG8HlcqUrqWkvz7YPbc0ePjOf7nPQdxmp9oPUECY7ZBaCs4KhzFW97f7ZP3oH+vcWF81tc2Rl/D8B3mGtVAkN7LO7v1pOy37o74xMKoAhulADwtEN1gyYt4XbxXXukWmFdRnTxE+KIXkBNdpg6yGl4YUc3E1gihJPBA0IApn5aNVfhLh/zesG+CQZAQvxdZzi10059DSDmclDAAHAnA7rfgjiXL0VODwVAVbC/nrqN1TSfjqRXAKh6FdEv8YYl4xCBewPQG1DH7Y5jwEtdxMleCcYDCFhC66vK+kYgzwIKCmQvxat9BUtXPpqiOKnwXJfhDD2PinAYBf8tdsB1PkDqtC1wOCw6rTTd1wcX1nGgCvi99gbOSvwLXz7kq1w7YIEu53eAlePRKwhYmJCpMLGkz6PqaxipsN2ZUILDPvVGtlz9kEGXJGDRhECchZC7XnGJAeoOQwlz0WsFMugBqDjmE1VA4/ruiDNFKwSNxoNEeUxPscA1R/f0A3AlQchLTty89ig9FzAYQk/qivAnhouFjdd8TMhIGcJTF89azJJIHPXRfaMQgF8HViN/jm6AggOW2WgL3FmetGkszCYXuKL2y+AoBfUWxZ9AYoxjFDio3mqkJq4e79EAaFougK6+oLXySiKPK2xN/jnyqT5Td5LaXECwiDS8+jyal26Ai619TSEndUScZcPe5uh+1ifLnugq0m4T8SnrwbMWkZbj/+croBF84tOiRnVraRNv2MFEV15drsj6G1tmlBAw7ZKRrzxGaQImLlGnVc096SugFnZWddk+rzvKNicGMn97ZhObqwc/vto55iur38Crv0SeQFjMyh7EWrOqobsrIyLk60F87l5uZGj5Q5CI4kpaVTAuQIcJWBIAe916D4LI95404++nmu+0WTR1uelph00GAyTroZ7aHrpNS4eGL8Yxf4rY5RqFZjxEGxuOo/RUh2tkTppeAcfUrqzG3tOPNloTJhiRsoY5DJatJbuDmG07BqLXE9AL7Y5eyh7IxLFU30XAkBhLeQ++T1wJqmOCLCiBU5wYm0V7sb44JoIYcCSA09d8JCWWwVcG29pggWklLFjGEPqW1R8MESKJf5xmqiRDAHL3oG03PcmItdzwSj+IPvh9ynfDWGh7woVKK7F53z2Z03T9usdniBACBE3oviIxXVNFGyIEIyHEJAxGyo/77nuvrEjGFTllAWMAz+KeRvLP/Vgn5mYFf91PkZYsU9inlGXbjW7DAaFeyUAoAVb/k6W7wVhjm84RnvFsu2Qt+lL4HBeXi4mk+meCgD4loJnDlC+I77t8gMF66H83T+BXVMr3fFRP5mRKcOBRlm/Xsp9SPkZUh7Kl3LI7ZFSLpjqeckIQEo5V454OuWRxVLuT5HScy4spdyYzFnJCkBKuU72nvfJtiNSSvlmsufovYR6qAOWAC8ydm7o4l8IO+JWe1h9JQAAAABJRU5ErkJggg==';
     var materialS = new THREE.SpriteMaterial( { map: texture,  color: 0xffffff, depthTest: false} );
-    var sprite = new THREE.Sprite(materialS); 
+    var sprite = new THREE.Sprite(materialS);
     sprite.scale.set(500,500,500);
     sprite.position.copy(pos);
 
-    var material = new THREE.LineBasicMaterial({ color: 0xffffff, transparent : false}); //side:THREE.DoubleSide, , linewidth: 5,
+    var material = new THREE.LineBasicMaterial({ color: 0xffffff, transparent : false}); //side:THREE.DoubleSide, , linewidth: 5
     var geometry = new THREE.Geometry();
     geometry.vertices.push(new THREE.Vector3(), new THREE.Vector3( -pos.x, -pos.y, -pos.z ).divideScalar(1000));
     var line = new THREE.Line( geometry, material );
     sprite.add(line);
-    
     return sprite;
-};	
+};
 
 
 FeatureToolBox.prototype.createText = function(pos, prop){
-    
+
     var sprite = makeTextSprite(prop.name);
     sprite.position.copy(pos);
-    
+
     var material = new THREE.LineBasicMaterial({ color: 0xffffff, transparent : false}); //side:THREE.DoubleSide, , linewidth: 5,
     var geometry = new THREE.Geometry();
     geometry.vertices.push(new THREE.Vector3(), new THREE.Vector3( -pos.x, -pos.y, -pos.z ).divideScalar(1000));
@@ -957,66 +835,56 @@ FeatureToolBox.prototype.createText = function(pos, prop){
 
 function makeTextSprite( message, parameters )
 {
-	if ( parameters === undefined ) parameters = {};
-	
-	var fontface = parameters.hasOwnProperty("fontface") ? 
-		parameters["fontface"] : "Arial";
-	
-	var fontsize = parameters.hasOwnProperty("fontsize") ? 
-		parameters["fontsize"] : 22;
-	
-	var borderThickness = parameters.hasOwnProperty("borderThickness") ? 
-		parameters["borderThickness"] : 4;
-	
-	var borderColor = parameters.hasOwnProperty("borderColor") ?
-		parameters["borderColor"] : { r:0, g:0, b:0, a:1.0 };
-	
-	var backgroundColor = parameters.hasOwnProperty("backgroundColor") ?
-		parameters["backgroundColor"] : { r:255, g:255, b:255, a:.8 };
+    if ( parameters === undefined ) parameters = {};
+    var fontface = parameters.hasOwnProperty("fontface") ?
+            parameters["fontface"] : "Arial";
 
-	//var spriteAlignment = THREE.SpriteAlignment.topLeft;
-		
-	var canvas = document.createElement('canvas');
-	var context = canvas.getContext('2d');
-	context.font = "Bold " + fontsize + "px " + fontface;
-    
-	// get size data (height depends only on font size)
-	var metrics = context.measureText( message );
-	var textWidth = metrics.width;
-	
-	// background color
-	context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + ","
-								  + backgroundColor.b + "," + backgroundColor.a + ")";
-	// border color
-	context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + ","
-								  + borderColor.b + "," + borderColor.a + ")";
-      /*                                                    
-        context.shadowColor = "#ffffff";
-        context.shadowOffsetX = 6;
-        context.shadowOffsetY = 6;
-        context.shadowBlur = 3;
-      */
-	context.lineWidth = borderThickness;
-	roundRect(context, borderThickness/2, borderThickness/2, textWidth + borderThickness, fontsize * 1.4 + borderThickness, 6);
-	// 1.4 is extra height factor for text below baseline: g,j,p,q.
-	
-	// text color
-	context.fillStyle = "rgba(0, 0, 0, 1.0)";
+    var fontsize = parameters.hasOwnProperty("fontsize") ?
+            parameters["fontsize"] : 22;
 
-	context.fillText( message, borderThickness, fontsize + borderThickness);
-	
-	// canvas contents will be used for a texture
-	var texture = new THREE.Texture(canvas) 
-	texture.needsUpdate = true;
+    var borderThickness = parameters.hasOwnProperty("borderThickness") ?
+            parameters["borderThickness"] : 4;
 
-	var spriteMaterial = new THREE.SpriteMaterial({ map: texture,  color: 0xffffff, depthTest: false} );//, useScreenCoordinates: false} );
-	var sprite = new THREE.Sprite( spriteMaterial );
-	sprite.scale.set(1000,1000,1000);//100,50,1.0);
-	return sprite;	
+    var borderColor = parameters.hasOwnProperty("borderColor") ?
+            parameters["borderColor"] : { r:0, g:0, b:0, a:1.0 };
+
+    var backgroundColor = parameters.hasOwnProperty("backgroundColor") ?
+            parameters["backgroundColor"] : { r:255, g:255, b:255, a:.8 };
+
+    //var spriteAlignment = THREE.SpriteAlignment.topLeft;
+
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+    context.font = "Bold " + fontsize + "px " + fontface;
+
+    // get size data (height depends only on font size)
+    var metrics = context.measureText( message );
+    var textWidth = metrics.width;
+
+    // background color
+    context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + ","
+                             + backgroundColor.b + "," + backgroundColor.a + ")";
+    // border color
+    context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + ","
+                             + borderColor.b + "," + borderColor.a + ")";
+    context.lineWidth = borderThickness;
+    roundRect(context, borderThickness/2, borderThickness/2, textWidth + borderThickness, fontsize * 1.4 + borderThickness, 6);
+    // 1.4 is extra height factor for text below baseline: g,j,p,q.
+    // text color
+    context.fillStyle = "rgba(0, 0, 0, 1.0)";
+    context.fillText( message, borderThickness, fontsize + borderThickness);
+    // canvas contents will be used for a texture
+    var texture = new THREE.Texture(canvas);
+    texture.needsUpdate = true;
+
+    var spriteMaterial = new THREE.SpriteMaterial({ map: texture,  color: 0xffffff, depthTest: false} );//, useScreenCoordinates: false} );
+    var sprite = new THREE.Sprite( spriteMaterial );
+    sprite.scale.set(1000,1000,1000);//100,50,1.0);
+    return sprite;
 }
 
 // function for drawing rounded rectangles
-function roundRect(ctx, x, y, w, h, r) 
+function roundRect(ctx, x, y, w, h, r)
 {
     ctx.beginPath();
     ctx.moveTo(x+r, y);
@@ -1030,16 +898,7 @@ function roundRect(ctx, x, y, w, h, r)
     ctx.quadraticCurveTo(x, y, x+r, y);
     ctx.closePath();
     ctx.fill();
-    ctx.stroke();   
+    ctx.stroke();
 }
-/*
- * Compute height for all feature vertices using available DTM data
- */
-FeatureToolBox.prototype.adjustHeightWithDTM = function(){
-    
- //   getPickingPositionFromDepth
-    
-};
-
 
 export default FeatureToolBox;

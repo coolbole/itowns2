@@ -267,13 +267,11 @@ Globe.prototype.setRealisticLightingOn = function(bool) {
     this.clouds.setLightingOn(bool);
 };
 
-Globe.prototype.createFeatureLayer = function(/*name*/){
+Globe.prototype.createFeatureLayer = function(){
     var featureLayer = new Layer();
-    //featureLayer.setName(name)
     var dataLayer = new THREE.Object3D();
     featureLayer.add(dataLayer);
     this.add(featureLayer);
-
     return featureLayer;
 };
 /*

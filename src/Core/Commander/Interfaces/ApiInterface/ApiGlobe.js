@@ -995,8 +995,8 @@ ApiGlobe.prototype.addFeaturesLayer = function(layer) {
                         kml_Provider.showFeatureAttributesAtPos(pos, event.mouse);
                     }
                 }.bind(this), false);
-                featureLayer.add(obj.geoFeat);
-                this.scene.gfxEngine.add3DScene(featureLayer.getMesh());// Only 3D Feat and 2D Icon/Text
+                featureLayer.add(obj.geoFeat); //console.log(featureLayer.getMesh());
+                this.scene.gfxEngine.add3DScene(obj.geoFeat);//featureLayer.getMesh());// Only 3D Feat and 2D Icon/Text
             }.bind(this));
         }
     }else{

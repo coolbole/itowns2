@@ -85,7 +85,14 @@ var LayeredMaterial = function(id) {
 
     let maxTexturesUnits =  gfxEngine().glParams.maxTexturesUnits;
     let nbSamplers = 7;//Math.min(maxTexturesUnits-1,16-1);
+
+
     this.vertexShader = GlobeVS;
+
+    //var maxTexturesUnits =  8;//gfxEngine().glParams.maxTexturesUnits;
+    //this.vertexShader = GlobeVS;
+    //var nbSamplers = Math.min(maxTexturesUnits-1,16-1);
+    //var nbSamplers = 8;
     this.fragmentShaderHeader +='const int   TEX_UNITS   = ' + nbSamplers.toString() + ';\n';
     this.fragmentShaderHeader += pitUV;
 
@@ -160,7 +167,7 @@ var LayeredMaterial = function(id) {
         type: "t",
         value: new THREE.Texture()
     };
-    
+
     this.uniforms.rasterFeatures = {
          type: "i",
          value: 0

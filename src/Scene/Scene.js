@@ -99,7 +99,7 @@ Scene.prototype.getPickPosition = function(mouse) {
     return this.gfxEngine.getPickingPositionFromDepth(mouse);
 };
 
-<<<<<<< b57a29d6a52679d182ce606628509a811e2c2e8f
+
 Scene.prototype.getStyle = function(name) {
     return this.stylesManager.getStyle(name);
 };
@@ -115,13 +115,12 @@ Scene.prototype.getStyles = function() {
  * Return long lat at mouse click
  */
 Scene.prototype.getPickPositionLonLat = function(mouse) {
-    
+
     var pos = this.getPickPosition(mouse);
     this.renderScene3D();
-    var posWGS84 = new Projection().cartesianToGeo(pos); 
+    var posWGS84 = new Projection().cartesianToGeo(pos);
     var lonDeg = posWGS84.coordinate[0] / Math.PI * 180;
     var latDeg = posWGS84.coordinate[1] / Math.PI * 180;
-   
     return {x:lonDeg, y:latDeg};
 };
 
@@ -320,7 +319,7 @@ Scene.prototype.setLightingPos = function(pos) {
 };
 
 Scene.prototype.addFeaturesRaster = function(featuresRaster){
-    
+
     this.featuresRasterOn = true;
     this.featuresRaster = featuresRaster;
     this.browserScene.updateMaterialUniform("rasterFeatures", 1);
@@ -329,17 +328,17 @@ Scene.prototype.addFeaturesRaster = function(featuresRaster){
 
 
 Scene.prototype.setFeaturesRasterOnOff = function(b){
-    
-    if(b != null) 
+
+    if(b != null)
         this.featuresRasterOn = b;
     else
         this.featuresRasterOn = !this.featuresRasterOn;
-    
+
     this.browserScene.updateMaterialUniform("rasterFeatures", this.featuresRasterOn);//this.featuresRasterOn? 1:0);
 };
 
 Scene.prototype.getFeaturesRasterOnOff = function(){
-    
+
     return this.featuresRasterOn;
 };
 

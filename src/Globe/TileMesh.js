@@ -24,7 +24,10 @@ import defaultValue from 'Core/defaultValue';
 import * as THREE from 'three';
 import OBBHelper from 'Renderer/ThreeExtented/OBBHelper';
 import SphereHelper from 'Renderer/ThreeExtented/SphereHelper';
+
 import LayeredMaterial,{l_ELEVATION} from 'Renderer/LayeredMaterial';
+
+
 import GlobeDepthMaterial from 'Renderer/GlobeDepthMaterial';
 import MatteIdsMaterial from 'Renderer/MatteIdsMaterial';
 import RendererConstant from 'Renderer/RendererConstant';
@@ -238,7 +241,7 @@ TileMesh.prototype.setTexturesLayer = function(textures, layerType, layer) {
     }
     this.loadingCheck();
 };
-      
+
 TileMesh.prototype.setRasterFeatures = function() {
 
     this.material.uniforms.rasterFeatures.value = Scene().featuresRasterOn ? 1 : 0;
