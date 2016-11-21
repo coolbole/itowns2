@@ -74,16 +74,16 @@ and open the template in the editor.
 
             itowns.viewer.addEventListener('globe-loaded', function() {
 
-            console.log("Globe Loaded");
+                console.log("Globe Loaded");
 
-            // KML Test
-            itowns.viewer.addFeaturesLayer({
-               protocol:"kml",
-               id: "myKmlLayer",
-               style: "myStyle",
-               local:"true",
-               url: "data/croquis.kml"
-            });
+                // KML Test
+                itowns.viewer.addFeaturesLayer({
+                   protocol:"kml",
+                   id: "myKmlLayer",
+                   style: "myStyle",
+                   local:"true",
+                   url: "examples/layers/croquis.kml"
+                });
 
             });
 
@@ -106,7 +106,6 @@ and open the template in the editor.
                 }
             }
 
->>>>>>> added picking in rasterized polygons
         </script>
     </body>
 </html>

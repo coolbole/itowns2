@@ -23,12 +23,10 @@ uniform bool        visibility[8];
 uniform float       distanceFog;
 uniform int         colorLayersCount;
 
-uniform int         selected;
 uniform int         layerVisible;
 uniform int         rasterFeatures;
 uniform int         nColorLayer;
 uniform int         uuid;
-uniform int         debug;
 uniform int         RTC;
 
 uniform vec3        lightPosition;

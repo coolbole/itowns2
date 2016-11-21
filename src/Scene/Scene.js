@@ -26,9 +26,8 @@ import Layer from 'Scene/Layer';
 import Capabilities from 'Core/System/Capabilities';
 import MobileMappingLayer from 'MobileMapping/MobileMappingLayer';
 import CustomEvent from 'custom-event';
-import {StyleManager} from 'Scene/Description/StyleManager';
 import Projection from 'Core/Geographic/Projection';
-
+import {StyleManager} from 'Scene/Description/StyleManager';
 
 var instanceScene = null;
 
@@ -99,7 +98,6 @@ Scene.prototype.getPickPosition = function(mouse) {
     return this.gfxEngine.getPickingPositionFromDepth(mouse);
 };
 
-
 Scene.prototype.getStyle = function(name) {
     return this.stylesManager.getStyle(name);
 };
@@ -110,7 +108,11 @@ Scene.prototype.removeStyle = function(name) {
 
 Scene.prototype.getStyles = function() {
     return this.stylesManager.getStyles();
+};
 
+Scene.prototype.getEllipsoid = function() {
+    return this.ellipsoid;
+};
 /*
  * Return long lat at mouse click
  */
@@ -122,10 +124,6 @@ Scene.prototype.getPickPositionLonLat = function(mouse) {
     var lonDeg = posWGS84.coordinate[0] / Math.PI * 180;
     var latDeg = posWGS84.coordinate[1] / Math.PI * 180;
     return {x:lonDeg, y:latDeg};
-};
-
-Scene.prototype.getEllipsoid = function() {
-    return this.ellipsoid;
 };
 
 Scene.prototype.size = function() {
