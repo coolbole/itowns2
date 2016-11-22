@@ -83,8 +83,8 @@ var LayeredMaterial = function(id) {
 
     BasicMaterial.call(this);
 
-    let maxTexturesUnits =  9;//gfxEngine().glParams.maxTexturesUnits;
-    let nbSamplers = Math.min(maxTexturesUnits-1,16-1);
+    let maxTexturesUnits =  gfxEngine().glParams.maxTexturesUnits;
+    let nbSamplers = Math.min(maxTexturesUnits-2,16-2);
     this.vertexShader = GlobeVS;
 
     this.fragmentShaderHeader +='const int   TEX_UNITS   = ' + nbSamplers.toString() + ';\n';
