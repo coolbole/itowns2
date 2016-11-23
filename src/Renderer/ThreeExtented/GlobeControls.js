@@ -693,7 +693,7 @@ function GlobeControls(camera, domElement, engine) {
 
                 var point = getPickingPosition(ptScreenClick);
                 // Dispatch 3D position of click for any services that need it
-                clickDown.mouse = new THREE.Vector2(ptScreenClick.x,ptScreenClick.y);
+                clickDown.mouse = new THREE.Vector2(ptScreenClick.x, ptScreenClick.y);
                 clickDown.coord3d = point;
                 domElement.dispatchEvent(clickDown);
 

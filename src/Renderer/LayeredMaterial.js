@@ -80,8 +80,8 @@ var LayeredMaterial = function (id) {
     BasicMaterial.call(this);
 
 
-    let maxTexturesUnits =  gfxEngine().glParams.maxTexturesUnits;
-    let nbSamplers = Math.min(maxTexturesUnits-2,16-2);
+    const maxTexturesUnits = gfxEngine().glParams.maxTexturesUnits;
+    const nbSamplers = Math.min(maxTexturesUnits - 2, 16 - 2);
 
     this.vertexShader = GlobeVS;
 
@@ -126,13 +126,13 @@ var LayeredMaterial = function (id) {
     this.uniforms.dTextures_01 = new THREE.Uniform(this.textures[l_COLOR]);
 
     this.uniforms.featureTexture = {
-        type: "t",
-        value: new THREE.Texture()
+        type: 't',
+        value: new THREE.Texture(),
     };
 
     this.uniforms.rasterFeatures = {
-         type: "i",
-         value: 0
+        type: 'i',
+        value: 0,
     };
 
     // Visibility layer
@@ -376,15 +376,13 @@ LayeredMaterial.prototype.setLayerVisibility = function (index, visible) {
     this.uniforms.visibility.value[index] = visible;
 };
 
-<<<<<<< HEAD
-LayeredMaterial.prototype.setFeatureLayerVisibility = function(visible) {
+
+LayeredMaterial.prototype.setFeatureLayerVisibility = function (visible) {
     this.uniforms.rasterFeatures.value = visible;
 };
 
-LayeredMaterial.prototype.setLayerTexturesCount = function(index, count) {
-=======
+
 LayeredMaterial.prototype.setLayerTexturesCount = function (index, count) {
->>>>>>> master
     this.layerTexturesCount[index] = count;
 };
 

@@ -27,7 +27,7 @@ import Capabilities from 'Core/System/Capabilities';
 import MobileMappingLayer from 'MobileMapping/MobileMappingLayer';
 import CustomEvent from 'custom-event';
 import Projection from 'Core/Geographic/Projection';
-import {StyleManager} from 'Scene/Description/StyleManager';
+import { StyleManager } from 'Scene/Description/StyleManager';
 
 
 var instanceScene = null;
@@ -116,14 +116,13 @@ Scene.prototype.getEllipsoid = function () {
 /*
  * Return long lat at mouse click
  */
-Scene.prototype.getPickPositionLonLat = function(mouse) {
-
+Scene.prototype.getPickPositionLonLat = function (mouse) {
     var pos = this.getPickPosition(mouse);
     this.renderScene3D();
     var posWGS84 = new Projection().cartesianToGeo(pos);
     var lonDeg = posWGS84.coordinate[0] / Math.PI * 180;
     var latDeg = posWGS84.coordinate[1] / Math.PI * 180;
-    return {x:lonDeg, y:latDeg};
+    return { x: lonDeg, y: latDeg };
 };
 
 Scene.prototype.size = function () {
@@ -307,31 +306,28 @@ Scene.prototype.setLightingPos = function (pos) {
     this.layers[0].node.updateLightingPos(this.lightingPos);
 };
 
-Scene.prototype.addFeaturesRaster = function(featuresRaster){
-
+Scene.prototype.addFeaturesRaster = function (featuresRaster) {
     this.featuresRasterOn = true;
     this.featuresRaster = featuresRaster;
-    this.browserScene.updateMaterialUniform("rasterFeatures", 1);
+    this.browserScene.updateMaterialUniform('rasterFeatures', 1);
     this.browserScene.updateFeatureRasterLayer();
 };
 
 
-Scene.prototype.setFeaturesRasterOnOff = function(b){
-
-    if(b != null)
-        this.featuresRasterOn = b;
+Scene.prototype.setFeaturesRasterOnOff = function (b) {
+    if (b != null)
+        { this.featuresRasterOn = b; }
     else
-        this.featuresRasterOn = !this.featuresRasterOn;
+        { this.featuresRasterOn = !this.featuresRasterOn; }
 
-    this.browserScene.updateMaterialUniform("rasterFeatures", this.featuresRasterOn);//this.featuresRasterOn? 1:0);
+    this.browserScene.updateMaterialUniform('rasterFeatures', this.featuresRasterOn);// this.featuresRasterOn? 1:0);
 };
 
-Scene.prototype.getFeaturesRasterOnOff = function(){
-
+Scene.prototype.getFeaturesRasterOnOff = function () {
     return this.featuresRasterOn;
 };
 
-Scene.prototype.getFeaturesRaster = function(){
+Scene.prototype.getFeaturesRaster = function () {
     return this.featuresRaster;
 };
 

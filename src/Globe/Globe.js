@@ -189,13 +189,12 @@ Globe.prototype.setLayerVisibility = function (id, visible) {
     this.tiles.children[0].traverse(cO);
 };
 
-<<<<<<< HEAD
-//TEMP
-Globe.prototype.setFeatureLayerVisibility = function(id, visible) {
 
+// TEMP
+Globe.prototype.setFeatureLayerVisibility = function (id, visible) {
     this.layersConfiguration.setLayerVisibility(id, visible);
 
-    var cO = function(object) {
+    var cO = function (object) {
         if (object.material.setFeatureLayerVisibility) {
             object.material.setFeatureLayerVisibility(visible);
         }
@@ -204,10 +203,7 @@ Globe.prototype.setFeatureLayerVisibility = function(id, visible) {
     this.tiles.children[0].traverse(cO);
 };
 
-Globe.prototype.updateLayersOrdering = function() {
-=======
 Globe.prototype.updateLayersOrdering = function () {
->>>>>>> master
     var sequence = this.layersConfiguration.getColorLayersIdOrderedBySequence();
 
     var cO = function (object) {
@@ -257,7 +253,7 @@ Globe.prototype.setRealisticLightingOn = function (bool) {
     this.clouds.setLightingOn(bool);
 };
 
-Globe.prototype.createFeatureLayer = function(){
+Globe.prototype.createFeatureLayer = function () {
     var featureLayer = new Layer();
     var dataLayer = new THREE.Object3D();
     featureLayer.add(dataLayer);

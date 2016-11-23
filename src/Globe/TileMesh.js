@@ -231,27 +231,23 @@ TileMesh.prototype.setTexturesLayer = function (textures, layerType, layer) {
 };
 
 
-TileMesh.prototype.setRasterFeatures = function() {
-
+TileMesh.prototype.setRasterFeatures = function () {
     this.material.uniforms.rasterFeatures.value = Scene().featuresRasterOn ? 1 : 0;
     this.material.uniforms.featureTexture.value = this.computeRasterFeature();
 };
 
-TileMesh.prototype.computeRasterFeature = function() {
-
+TileMesh.prototype.computeRasterFeature = function () {
     var bbox = new THREE.Vector4(this.bbox.minCoordinate.coordinate[0],
                                  this.bbox.minCoordinate.coordinate[1],
                                  this.bbox.maxCoordinate.coordinate[0],
-                                 this.bbox.maxCoordinate.coordinate[1]
-                                );
+                                 this.bbox.maxCoordinate.coordinate[1]);
 
-    var bboxOriginDeg = new THREE.Vector2(bbox.x, bbox.y).divideScalar(Math.PI/180);
-    var bboxSizeDeg = new THREE.Vector2(bbox.z - bbox.x, bbox.w - bbox.y).divideScalar(Math.PI/180);
+    var bboxOriginDeg = new THREE.Vector2(bbox.x, bbox.y).divideScalar(Math.PI / 180);
+    var bboxSizeDeg = new THREE.Vector2(bbox.z - bbox.x, bbox.w - bbox.y).divideScalar(Math.PI / 180);
     return new FeatureToolBox().createRasterImage(bboxOriginDeg, bboxSizeDeg, Scene().featuresRaster.lines, Scene().featuresRaster.polygons);
 };
 
 TileMesh.prototype.isColorLayerDownscaled = function (layer) {
-
     var mat = this.materials[RendererConstant.FINAL];
     return mat.isColorLayerDownscaled(layer, this.level);
 };

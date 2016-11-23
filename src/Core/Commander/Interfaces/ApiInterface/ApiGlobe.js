@@ -919,8 +919,7 @@ ApiGlobe.prototype.showKML = function (value) {
     this.scene.renderScene3D();
 };
 
-ApiGlobe.prototype.setFeatureLayerVisibility = function(id, visible) {
-
+ApiGlobe.prototype.setFeatureLayerVisibility = function (id, visible) {
     this.scene.setFeaturesRasterOnOff(visible);
     this.scene.getMap().setFeatureLayerVisibility(id, visible);
 
@@ -933,36 +932,33 @@ ApiGlobe.prototype.setFeatureLayerVisibility = function(id, visible) {
  * @param {type} Layer
  * @returns {undefined}
  */
-ApiGlobe.prototype.addFeaturesLayer = function(layer) {
-
+ApiGlobe.prototype.addFeaturesLayer = function (layer) {
     var map = this.scene.getMap();
     map.layersConfiguration.addFeaturesLayer(layer);// if already a feature layer don't
-    var featureLayer  = map.createFeatureLayer(layer.id);
+    var featureLayer = map.createFeatureLayer(layer.id);
 
-    if(layer.local){
-        if(layer.protocol === "kml"){
+    if (layer.local) {
+        if (layer.protocol === 'kml') {
             var kml_Provider = new KML_Provider(this.scene.getEllipsoid());
-            kml_Provider.parseKML(layer.url).then( function(obj){
-
+            kml_Provider.parseKML(layer.url).then((obj) => {
                 this.scene.addFeaturesRaster(obj.objLinesPolyToRaster); // Only 2D Polygons and Lines
                 // Add listener for click down on feature
-                this.scene.gfxEngine.getRenderer().domElement.addEventListener('clickDown',function(event){
-                    if(this.scene.getFeaturesRasterOnOff()){
+                this.scene.gfxEngine.getRenderer().domElement.addEventListener('clickDown', (event) => {
+                    if (this.scene.getFeaturesRasterOnOff()) {
                         var pos = this.scene.getPickPositionLonLat(event.mouse);
                         kml_Provider.showFeatureAttributesAtPos(pos, event.mouse);
                     }
-                }.bind(this), false);
-                featureLayer.add(obj.geoFeat); //console.log(featureLayer.getMesh());
-                this.scene.gfxEngine.add3DScene(obj.geoFeat);//featureLayer.getMesh());// Only 3D Feat and 2D Icon/Text
-            }.bind(this));
+                }, false);
+                featureLayer.add(obj.geoFeat); // console.log(featureLayer.getMesh());
+                this.scene.gfxEngine.add3DScene(obj.geoFeat);// featureLayer.getMesh());// Only 3D Feat and 2D Icon/Text
+            });
         }
-    }else{
+    } else {
         preprocessLayer(layer, this.scene.managerCommand.getProtocolProvider(layer.protocol));
     }
 };
 
-ApiGlobe.prototype.updateFeatureHeights = function(){
-
+ApiGlobe.prototype.updateFeatureHeights = function () {
     this.scene.getMap().updateFeatureHeights();
     this.scene.renderScene3D();
 };

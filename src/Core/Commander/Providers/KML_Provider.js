@@ -6,17 +6,15 @@
 
 import Provider from 'Core/Commander/Providers/Provider';
 import Fetcher from 'Core/Commander/Providers/Fetcher';
-//import * as THREE from 'THREE';
-//import KMZLoader from 'Renderer/ThreeExtented/KMZLoader';
+// import * as THREE from 'THREE';
+// import KMZLoader from 'Renderer/ThreeExtented/KMZLoader';
 import FeatureToolBox from 'Renderer/ThreeExtented/FeatureToolBox';
-//import BasicMaterial from 'Renderer/BasicMaterial';
+// import BasicMaterial from 'Renderer/BasicMaterial';
 import Togeojson from 'togeojson';
 
 
 function KML_Provider(ellipsoid) {
-
     this.ellipsoid = ellipsoid;
-    this.ioDriverXML = new IoDriverXML();
     // this.kmzLoader = new KMZLoader();
     this.cache = new Map();
     this.featureToolBox = null;
@@ -27,15 +25,14 @@ KML_Provider.prototype = Object.create(Provider.prototype);
 KML_Provider.prototype.constructor = KML_Provider;
 
 
-KML_Provider.prototype.parseKML = function(urlFile) {
-
+KML_Provider.prototype.parseKML = function (urlFile) {
     return Fetcher.xml(urlFile).then((result) => {
         var geojson = Togeojson.kml(result);
         this.featureToolBox = new FeatureToolBox();
         var objLinesPolyToRaster = this.featureToolBox.extractFeatures(geojson); // Raster feat
         var geoFeat = new FeatureToolBox().createFeaturesPoints(geojson); // processingGeoJSON(geojson);
-        //console.log(objLinesPolyToRaster);
-        return {geoFeat: geoFeat, objLinesPolyToRaster: objLinesPolyToRaster};
+        // console.log(objLinesPolyToRaster);
+        return { geoFeat, objLinesPolyToRaster };
     });
 };
 
@@ -46,45 +43,44 @@ KML_Provider.prototype.parseKML = function(urlFile) {
  * @param {type} mouse
  * @returns {undefined}
  */
-KML_Provider.prototype.showFeatureAttributesAtPos = function(p, mouse){
+KML_Provider.prototype.showFeatureAttributesAtPos = function (p, mouse) {
+    var att = this.featureToolBox.showFeatureAttributesAtPos(p);
+    var desc = att === '' ? 'No Description' : att;
 
-    var att =   this.featureToolBox.showFeatureAttributesAtPos(p);
-    var desc = att === "" ? "No Description" : att;
-
-    if(att !=="noIntersect") {
-        var canvas = document.createElement("canvas");
+    if (att !== 'noIntersect') {
+        var canvas = document.createElement('canvas');
         canvas.width = 1920;
         canvas.height = 1080;
-        canvas.setAttribute("id", "canvasID");
-        var ctx = canvas.getContext("2d");
+        canvas.setAttribute('id', 'canvasID');
+        var ctx = canvas.getContext('2d');
 
         ctx.textAlign = 'center';
         ctx.beginPath();
         ctx.globalAlpha = 0.50;
-        ctx.font = "24px serif";
+        ctx.font = '24px serif';
         var w = ctx.measureText(desc).width;
         var h = 30;
-        ctx.rect(mouse.x - w/2, mouse.y - h*2/3, w, h);
-        ctx.fillStyle = "white";
+        ctx.rect(mouse.x - w / 2, mouse.y - h * 2 / 3, w, h);
+        ctx.fillStyle = 'white';
         ctx.fill();
-        ctx.fillStyle = "black";
-        ctx.globalAlpha = .8;
+        ctx.fillStyle = 'black';
+        ctx.globalAlpha = 0.8;
         ctx.fillText(desc, mouse.x, mouse.y);
 
-        canvas.style.left = "0px";//mouse.x + "px";
-        canvas.style.top  = "0px";//mouse.y + "px";
-        canvas.style.position = "absolute";
+        canvas.style.left = '0px';// mouse.x + "px";
+        canvas.style.top = '0px';// mouse.y + "px";
+        canvas.style.position = 'absolute';
 
         document.body.appendChild(canvas);
 
-        canvas.addEventListener('mousedown', function() {
+        canvas.addEventListener('mousedown', () => {
             var oldcanv = document.getElementById('canvasID');
             oldcanv.parentNode.removeChild(oldcanv);
         }, false);
     }
 };
 
-KML_Provider.prototype.loadKMZCenterInBBox = function( /*bbox*/ ) {
+KML_Provider.prototype.loadKMZCenterInBBox = function (/* bbox*/) {
 
 };
 
@@ -133,7 +129,6 @@ KML_Provider.prototype.loadKMZ = function(longitude, latitude) {
 
 };
 */
-
 
 
 /*

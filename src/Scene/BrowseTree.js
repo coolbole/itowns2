@@ -190,25 +190,22 @@ BrowseTree.prototype.updateLayer = function (layer, camera) {
 };
 
 // TEMP
-BrowseTree.prototype.updateFeatureRasterLayer = function() {
-
+BrowseTree.prototype.updateFeatureRasterLayer = function () {
     for (var a = 0; a < this.tree.children.length; ++a) {
         var root = this.tree.children[a];
         for (var c = 0; c < root.children.length; c++) {
-
             var node = root.children[c];
-            var lookMaterial = function(obj) {
+            var lookMaterial = function (obj) {
                 obj.setRasterFeatures();
-            }.bind(this);
+            };
 
             if (node.traverse)
-                node.traverse(lookMaterial);
+                { node.traverse(lookMaterial); }
         }
     }
 };
 
 BrowseTree.prototype.updateMobileMappingLayer = function (layer, camera) {
-
     if (!layer.visible)
         { return; }
 

@@ -58,14 +58,13 @@ LayersConfiguration.prototype.addGeometryLayer = function (layer) {
 };
 
 
-LayersConfiguration.prototype.addFeaturesLayer = function(layer) {
+LayersConfiguration.prototype.addFeaturesLayer = function (layer) {
     this.featuresLayers.push(layer);
     this.layersState[layer.id] = defaultState();
-}
+};
 
 
 LayersConfiguration.prototype.removeColorLayer = function (id) {
-
     if (this.layersState[id]) {
         this.colorLayers = this.colorLayers.filter(l => l.id != id);
         delete this.layersState[id];
@@ -91,13 +90,12 @@ LayersConfiguration.prototype.getElevationLayers = function () {
 };
 
 
-LayersConfiguration.prototype.getFeaturesLayers = function() {
+LayersConfiguration.prototype.getFeaturesLayers = function () {
     return this.featuresLayers;
 };
 
 
 LayersConfiguration.prototype.setLayerOpacity = function (id, opacity) {
-
     if (this.layersState[id]) {
         this.layersState[id].opacity = opacity;
     }
