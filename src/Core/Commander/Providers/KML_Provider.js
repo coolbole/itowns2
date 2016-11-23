@@ -5,7 +5,7 @@
 /* global Promise*/
 
 import Provider from 'Core/Commander/Providers/Provider';
-import IoDriverXML from 'Core/Commander/Providers/IoDriverXML';
+import Fetcher from 'Core/Commander/Providers/Fetcher';
 //import * as THREE from 'THREE';
 //import KMZLoader from 'Renderer/ThreeExtented/KMZLoader';
 import FeatureToolBox from 'Renderer/ThreeExtented/FeatureToolBox';
@@ -29,14 +29,14 @@ KML_Provider.prototype.constructor = KML_Provider;
 
 KML_Provider.prototype.parseKML = function(urlFile) {
 
-    return this.ioDriverXML.read(urlFile).then(function(result) {
+    return Fetcher.xml(urlFile).then((result) => {
         var geojson = Togeojson.kml(result);
         this.featureToolBox = new FeatureToolBox();
         var objLinesPolyToRaster = this.featureToolBox.extractFeatures(geojson); // Raster feat
         var geoFeat = new FeatureToolBox().createFeaturesPoints(geojson); // processingGeoJSON(geojson);
         //console.log(objLinesPolyToRaster);
         return {geoFeat: geoFeat, objLinesPolyToRaster: objLinesPolyToRaster};
-    }.bind(this));
+    });
 };
 
 
@@ -192,20 +192,16 @@ KML_Provider.prototype.parseKML = function(urlFile, longitude, latitude) {
 };
 */
 
-KML_Provider.prototype.getUrlCollada = function(longitude, latitude) {
-
-    return this.ioDriverXML.read('http://wxs.ign.fr/va5orxd0pgzvq3jxutqfuy0b/vecteurtuile3d/BATI3D/BU.Building.kml').then(function( /*result_0*/ ) {
-
+KML_Provider.prototype.getUrlCollada = function (longitude, latitude) {
+    return Fetcher.xml('http://wxs.ign.fr/va5orxd0pgzvq3jxutqfuy0b/vecteurtuile3d/BATI3D/BU.Building.kml').then((/* result_0*/) => {
         // get href's node value
-        //var kml_0 = result_0.getElementsByTagName("href");
+        // var kml_0 = result_0.getElementsByTagName("href");
         var url_href_1;
         var key = 'va5orxd0pgzvq3jxutqfuy0b';
 
-        url_href_1 = 'http://wxs.ign.fr/' + key + '/vecteurtuile3d/BATI3D/FXX/TREE/0/0_000_000.kml';
+        url_href_1 = `http://wxs.ign.fr/${key}/vecteurtuile3d/BATI3D/FXX/TREE/0/0_000_000.kml`;
 
         return this.parseKML(url_href_1, longitude, latitude);
-
-    }.bind(this));
+    });
 };
-
 export default KML_Provider;
