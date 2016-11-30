@@ -16,7 +16,7 @@ import Projection from 'Core/Geographic/Projection';
 import CustomEvent from 'custom-event';
 import Fetcher from 'Core/Commander/Providers/Fetcher';
 import { STRATEGY_MIN_NETWORK_TRAFFIC } from 'Scene/LayerUpdateStrategy';
-//import Control from 'Core/Commander/Interfaces/Control';
+import Control from 'Core/Commander/Interfaces/Control';
 
 var loaded = false;
 var eventLoaded = new CustomEvent('globe-loaded');
@@ -37,6 +37,8 @@ function ApiGlobe() {
     this.commandsTree = null;
     this.projection = new Projection();
     this.viewerDiv = null;
+    this.controls = [];
+    this.Control = Control;
 }
 
 ApiGlobe.prototype.constructor = ApiGlobe;
@@ -477,7 +479,7 @@ ApiGlobe.prototype.getCenter = function () {
 ApiGlobe.prototype.setCameraOrientation = function (orientation /* param,pDisableAnimationopt*/) {
     this.setHeading(orientation.heading);
     this.setTilt(orientation.tilt);
-    this.viewerDiv.dispatchEvent(eventOrientation);
+    // this.viewerDiv.dispatchEvent(eventOrientation);
 };
 
 /**
@@ -661,6 +663,7 @@ ApiGlobe.prototype.setRange = function (pRange /* , bool anim*/) {
     eventRange.oldRange = this.getRange();
     loaded = false;
     this.scene.currentControls().setRange(pRange);
+    this.viewerDiv.dispatchEvent(eventRange);
     this.addEventListener('globe-loaded', updateTargetCamera(this));
 };
 
@@ -671,7 +674,9 @@ ApiGlobe.prototype.setRange = function (pRange /* , bool anim*/) {
  * @param      {vector}  pVector  The vector
  */
 ApiGlobe.prototype.pan = function (pVector) {
+    eventCenter.oldCenter = this.getCenter();
     this.scene.currentControls().pan(pVector.x, pVector.y);
+    this.viewerDiv.dispatchEvent(eventCenter);
 };
 
 /**
@@ -853,12 +858,40 @@ ApiGlobe.prototype.removeEventListenerLayerChanged = function () {
     this.viewerDiv.removeEventListener('layerchanged:index', this.callbackLayerChanged, false);
 };
 
-/*ApiGlobe.prototype.addControl = function (control) {
-    var pControl = new Control(control);
-    console.log(pControl);
-};*/
+/**
+ * Add a control.
+ * @constructor
+ * @param {object} Control - The Control object.
+ */
 
-ApiGlobe.prototype.launchCommandApi = function() {
+ApiGlobe.prototype.addControl = function (control) {
+    this.controls.push(control);
+};
+
+/**
+ * Returns all controls.
+ * @constructor
+ * @return     {array}  The array of controls.
+ */
+
+ApiGlobe.prototype.getControls = function () {
+    return this.controls;
+};
+
+/**
+ * Remove a control.
+ * @constructor
+ * @param {object} Control - The Control object.
+ */
+// BUG
+ApiGlobe.prototype.removeControl = function (control) {
+    var index = this.controls.indexOf(control);
+    if (index > -1) {
+        this.controls.splice(index, 1);
+    }
+};
+
+ApiGlobe.prototype.launchCommandApi = function () {
 
     // this.removeImageryLayer('ScanEX');
 
