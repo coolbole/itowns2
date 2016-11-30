@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import Sphere from 'Core/Math/Sphere';
 import CustomEvent from 'custom-event';
+import AnimationPlayer, { Animation, AnimatedExpression } from 'Scene/AnimationPlayer';
 
 var selectClick = new CustomEvent('selectClick');
 
@@ -16,9 +17,10 @@ var selectClick = new CustomEvent('selectClick');
 // Recast touch for globe
 // Fix target problem with pan and panoramic (when target isn't on globe)
 // Fix problem with space
-// Add damping mouve
 // Add real collision
-// Animate move camera
+
+// FIXME:
+// when move globe in damping orbit, there isn't move!!
 
 var CONTROL_STATE = {
     NONE: -1,
@@ -44,51 +46,148 @@ var CONTROL_KEYS = {
     S: 83,
 };
 
+var presiceSlerp = function (qb, t) {
+    if (t === 0) {
+        return this;
+    }
+
+    if (t === 1) {
+        return this.copy(qb);
+    }
+
+    const x = this._x;
+    const y = this._y;
+    const z = this._z;
+    const w = this._w;
+
+    // http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/
+
+    var cosHalfTheta = w * qb._w + x * qb._x + y * qb._y + z * qb._z;
+
+    if (cosHalfTheta < 0) {
+        this._w = -qb._w;
+        this._x = -qb._x;
+        this._y = -qb._y;
+        this._z = -qb._z;
+
+        cosHalfTheta = -cosHalfTheta;
+    } else {
+        this.copy(qb);
+    }
+
+    if (cosHalfTheta >= 1.0) {
+        this._w = w;
+        this._x = x;
+        this._y = y;
+        this._z = z;
+
+        return this;
+    }
+
+    const sinHalfTheta = Math.sqrt(1.0 - cosHalfTheta * cosHalfTheta);
+    const halfTheta = Math.atan2(sinHalfTheta, cosHalfTheta);
+    const ratioA = Math.sin((1 - t) * halfTheta) / sinHalfTheta;
+    const ratioB = Math.sin(t * halfTheta) / sinHalfTheta;
+
+    this._w = (w * ratioA + this._w * ratioB);
+    this._x = (x * ratioA + this._x * ratioB);
+    this._y = (y * ratioA + this._y * ratioB);
+    this._z = (z * ratioA + this._z * ratioB);
+
+    this.onChangeCallback();
+
+    return this;
+};
 
 // private members
-
 var space = false;
 var EPS = 0.000001;
 
 // Orbit
-var rotateStart = new THREE.Vector2();
-var rotateEnd = new THREE.Vector2();
-var rotateDelta = new THREE.Vector2();
+const rotateStart = new THREE.Vector2();
+const rotateEnd = new THREE.Vector2();
+const rotateDelta = new THREE.Vector2();
+const spherical = new THREE.Spherical(1.0, 0.01, 0);
+const sphericalDelta = new THREE.Spherical(1.0, 0, 0);
 
 // Pan
-var panStart = new THREE.Vector2();
-var panEnd = new THREE.Vector2();
-var panDelta = new THREE.Vector2();
-var panOffset = new THREE.Vector3();
+const panStart = new THREE.Vector2();
+const panEnd = new THREE.Vector2();
+const panDelta = new THREE.Vector2();
+const panOffset = new THREE.Vector3();
 
-var offset = new THREE.Vector3();
+const offset = new THREE.Vector3();
 
 // Dolly
-var dollyStart = new THREE.Vector2();
-var dollyEnd = new THREE.Vector2();
-var dollyDelta = new THREE.Vector2();
-var scale = 1;
-
-// Orbit move
-var spherical = new THREE.Spherical(1.0, 0.01, 0);
-var sphericalDelta = new THREE.Spherical(1.0, 0, 0);
+const dollyStart = new THREE.Vector2();
+const dollyEnd = new THREE.Vector2();
+const dollyDelta = new THREE.Vector2();
+// var scale = 1.0;
+const sphericalTo = new THREE.Spherical();
 
 // Globe move
-var quatGlobe = new THREE.Quaternion();
-var globeTarget = new THREE.Object3D();
+const quatGlobe = new THREE.Quaternion();
+const globeTarget = new THREE.Object3D();
+const movingGlobeTarget = new THREE.Vector3();
+var animatedScale = 0.0;
+
+const ctrl = {
+    progress: 0,
+    quatGlobe,
+    qDelta: new THREE.Quaternion(),
+    dampingFactor: 0.25,
+};
+
+ctrl.qDelta.presiceSlerp = presiceSlerp;
+quatGlobe.presiceSlerp = presiceSlerp;
+
+// AnimationPlayer
+const player = new AnimationPlayer();
+var lastRotation = [];
+
+var dampingMoveAnimatedExpression = (function () {
+    const damp = new THREE.Quaternion(0, 0, 0, 1);
+    return function (root) {
+        root.qDelta.presiceSlerp(damp, root.dampingFactor * 0.2);
+        root.quatGlobe.multiply(root.qDelta);
+    };
+}());
+
+var zoomCenterAnimatedExpression = function (root, progress) {
+    root.quatGlobe.set(0, 0, 0, 1);
+    root.progress = 1 - Math.pow((1 - (Math.sin((progress - 0.5) * Math.PI) * 0.5 + 0.5)), 2);
+    root.quatGlobe.presiceSlerp(root.qDelta, root.progress);
+};
+
+var animationOrbitExpression = function (root, progress) {
+    root.scale = 1.0 - (1.0 - root.sphericalTo.radius / root.spherical.radius) * progress;
+    root.sphericalDelta.theta = root.sphericalTo.theta;
+    root.sphericalDelta.phi = root.sphericalTo.phi;
+};
+
+const orbit = {
+    spherical,
+    sphericalDelta,
+    sphericalTo,
+    scale: 1,
+};
+
+var animationDampingMove = new AnimatedExpression(120, ctrl, dampingMoveAnimatedExpression, 'Damping Move');
+var animationZoomCenter = new AnimatedExpression(45, ctrl, zoomCenterAnimatedExpression, 'Zoom Center');
+var animationOrbit = new AnimatedExpression(30, orbit, animationOrbitExpression, 'set Orbit');
+var OrbitDamping = new Animation(60, {}, 'orbit damping');
+
 // Replace matrix float by matrix double
 globeTarget.matrixWorld.elements = new Float64Array(16);
 globeTarget.matrixWorldInverse = new THREE.Matrix4();
 globeTarget.matrixWorldInverse.elements = new Float64Array(16);
 
-var movingGlobeTarget = new THREE.Vector3();
-
 // Pan Move
-var panVector = new THREE.Vector3();
+const panVector = new THREE.Vector3();
 
 // Save last transformation
-var lastPosition = new THREE.Vector3();
-var lastQuaternion = new THREE.Quaternion();
+const lastPosition = new THREE.Vector3();
+const lastQuaternion = new THREE.Quaternion();
 
 // State control
 var state = CONTROL_STATE.NONE;
@@ -99,11 +198,11 @@ var initialPosition;
 var initialZoom;
 
 // picking
-var ptScreenClick = new THREE.Vector2();
-var sizeRendering = new THREE.Vector2();
+const ptScreenClick = new THREE.Vector2();
+const sizeRendering = new THREE.Vector2();
 
 // Tangent sphere to ellispoid
-var tSphere = new Sphere();
+const tSphere = new Sphere();
 tSphere.picking = { position: new THREE.Vector3(), normal: new THREE.Vector3() };
 
 // Special key
@@ -119,7 +218,7 @@ var _handlerMouseMove;
 var _handlerMouseUp;
 
 // Pseudo collision
-var radiusCollision = 50;
+const radiusCollision = 50;
 
 // SnapCamera saves transformation's camera
 // It's use to globe move
@@ -152,7 +251,7 @@ function SnapCamera(camera) {
         this.position.copy(objectToSnap.position);
     };
 
-    var matrix = new THREE.Matrix4();
+    const matrix = new THREE.Matrix4();
     matrix.elements = new Float64Array(16);
 
     this.updateRay = function (ray, mouse)
@@ -172,6 +271,7 @@ var snapShotCamera;
 /* globals document,window */
 
 function GlobeControls(camera, domElement, engine) {
+    player.dom = domElement;
     var scene = engine.scene;
     this.camera = camera;
     snapShotCamera = new SnapCamera(camera);
@@ -210,7 +310,7 @@ function GlobeControls(camera, domElement, engine) {
     // Range is 0 to Math.PI radians.
     // TODO Warning minPolarAngle = 0.01 -> it isn't possible to be perpendicular on Globe
     this.minPolarAngle = 0.01; // radians
-    this.maxPolarAngle = Math.PI; // radians
+    this.maxPolarAngle = Math.PI * 0.5; // radians
 
     // How far you can orbit horizontally, upper and lower limits.
     // If set, must be a sub-interval of the interval [ - Math.PI, Math.PI ].
@@ -220,9 +320,10 @@ function GlobeControls(camera, domElement, engine) {
     // Set to true to disable use of the keys
     this.enableKeys = true;
 
+    // Enable Damping
+    this.enableDamping = true;
 
-    if (enableTargetHelper)
-    {
+    if (enableTargetHelper) {
         this.pickingHelper = new THREE.AxisHelper(500000);
     }
 
@@ -255,7 +356,6 @@ function GlobeControls(camera, domElement, engine) {
     this.endEvent = {
         type: 'end',
     };
-
 
     //
     this.updateCamera = function (camera) {
@@ -347,7 +447,7 @@ function GlobeControls(camera, domElement, engine) {
         }
 
         if (this.camera instanceof THREE.PerspectiveCamera) {
-            scale /= dollyScale;
+            orbit.scale /= dollyScale;
         } else if (this.camera instanceof THREE.OrthographicCamera) {
             this.camera.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.camera.zoom * dollyScale));
             this.camera.updateProjectionMatrix();
@@ -365,7 +465,7 @@ function GlobeControls(camera, domElement, engine) {
         }
 
         if (this.camera instanceof THREE.PerspectiveCamera) {
-            scale *= dollyScale;
+            orbit.scale *= dollyScale;
         } else if (this.camera instanceof THREE.OrthographicCamera) {
             this.camera.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.camera.zoom / dollyScale));
             this.camera.updateProjectionMatrix();
@@ -409,15 +509,9 @@ function GlobeControls(camera, domElement, engine) {
         return position;
     };
 
-    var quaterPano = new THREE.Quaternion();
-    var quaterAxis = new THREE.Quaternion();
-    var axisX = new THREE.Vector3(1, 0, 0);
-
-    // /////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // /////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // /////////////////////////////////////////////////////////////////////////////////////////////////////
+    const quaterPano = new THREE.Quaternion();
+    const quaterAxis = new THREE.Quaternion();
+    const axisX = new THREE.Vector3(1, 0, 0);
 
     var update = function () {
         // MOVE_GLOBE
@@ -425,6 +519,9 @@ function GlobeControls(camera, domElement, engine) {
         if (state === CONTROL_STATE.MOVE_GLOBE) {
             movingGlobeTarget.copy(this.getTargetCameraPosition()).applyQuaternion(quatGlobe);
             this.camera.position.copy(snapShotCamera.position).applyQuaternion(quatGlobe);
+            if (ctrl.progress > 0) {
+                this.camera.position.lerp(movingGlobeTarget, ctrl.progress * animatedScale);
+            }
             this.camera.up.copy(movingGlobeTarget.clone().normalize());
         // PAN
         // Move camera in projection plan
@@ -469,7 +566,7 @@ function GlobeControls(camera, domElement, engine) {
             // restrict spherical.phi to be between desired limits
             spherical.phi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, spherical.phi));
 
-            spherical.radius = offset.length() * scale;
+            spherical.radius = offset.length() * orbit.scale;
 
             // restrict spherical.phi to be betwee EPS and PI-EPS
             spherical.makeSafe();
@@ -487,10 +584,15 @@ function GlobeControls(camera, domElement, engine) {
 
         this.camera.lookAt(movingGlobeTarget);
 
-        quatGlobe.set(0, 0, 0, 1);
-        sphericalDelta.theta = 0;
-        sphericalDelta.phi = 0;
-        scale = 1;
+        if (!this.enableDamping) {
+            sphericalDelta.theta = 0;
+            sphericalDelta.phi = 0;
+        } else {
+            sphericalDelta.theta *= (1 - ctrl.dampingFactor);
+            sphericalDelta.phi *= (1 - ctrl.dampingFactor);
+        }
+
+        orbit.scale = 1;
         panVector.set(0, 0, 0);
 
         // update condition is:
@@ -502,6 +604,10 @@ function GlobeControls(camera, domElement, engine) {
 
             lastPosition.copy(this.camera.position);
             lastQuaternion.copy(this.camera.quaternion);
+        }
+        if (this.enableDamping && state === CONTROL_STATE.ORBIT && player.isStopped() && (sphericalDelta.theta > EPS || sphericalDelta.phi > EPS)) {
+            window.clearInterval(this.timer);
+            this.timer = window.setTimeout(() => { player.startAnimation(OrbitDamping); }, 1000 / 30);
         }
     }.bind(this);
 
@@ -517,7 +623,7 @@ function GlobeControls(camera, domElement, engine) {
     // Position object on globe
     var positionObject = (function ()
     {
-        var quaterionX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+        const quaterionX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
         return function (newPosition, object)
         {
             object.position.copy(newPosition);
@@ -529,14 +635,14 @@ function GlobeControls(camera, domElement, engine) {
 
     // set new globe target
     var setGlobleTarget = function (newPosition) {
- // Compute the new target center position
+    // Compute the new target center position
 
         positionObject(newPosition, globeTarget);
 
         globeTarget.matrixWorldInverse.getInverse(globeTarget.matrixWorld);
     };
 
-    var cT = new THREE.Vector3();
+    const cT = new THREE.Vector3();
     // update globe target
     var updateGlobeTarget = function () {
         // Get distance camera DME
@@ -545,7 +651,6 @@ function GlobeControls(camera, domElement, engine) {
         if (!pickingPosition) {
             return;
         }
-
         var distanceTarget = Math.floor(pickingPosition.distanceTo(this.camera.position));
 
         // Position movingGlobeTarget on DME
@@ -560,6 +665,8 @@ function GlobeControls(camera, domElement, engine) {
         offset.copy(this.camera.position);
         offset.applyMatrix4(globeTarget.matrixWorldInverse);
         spherical.setFromVector3(offset);
+        state = CONTROL_STATE.NONE;
+        lastRotation = [];
     };
 
     // Update helper
@@ -589,16 +696,22 @@ function GlobeControls(camera, domElement, engine) {
             tSphere.picking.position.copy(tSphere.intersectWithRayNoMiss(ray));
             tSphere.picking.normal = tSphere.picking.position.clone().normalize();
 
+            // lastRotation.splice(0);
+            lastRotation.push(tSphere.picking.normal);
+
             updateHelper.bind(this)(tSphere.picking.position, this.pickingHelper);
         };
     }());
 
     var onMouseMove = (function () {
-        var ray = new THREE.Ray();
-        var mouse = new THREE.Vector2();
+        const ray = new THREE.Ray();
+        const mouse = new THREE.Vector2();
 
-        return function (event)
-        {
+        return function (event) {
+            if (player.isPlayed()) {
+                window.clearInterval(this.timer);
+                player.stop();
+            }
             if (this.enabled === false) return;
 
             event.preventDefault();
@@ -651,80 +764,97 @@ function GlobeControls(camera, domElement, engine) {
 
                 snapShotCamera.updateRay(ray, mouse);
 
-                var intersection = tSphere.intersectWithRayNoMiss(ray);
+                var intersection = tSphere.intersectWithRay(ray);
 
-                if (intersection)
-                    { quatGlobe.setFromUnitVectors(intersection.normalize(), tSphere.picking.normal); }
+                if (intersection) {
+                    var normalizedIntersection = intersection.normalize();
+                    quatGlobe.setFromUnitVectors(normalizedIntersection, tSphere.picking.normal);
+                    lastRotation.push(normalizedIntersection.clone());
+                    if (lastRotation.length > 2) {
+                        lastRotation.splice(0, 1);
+                    }
+                } else {
+                    onMouseUp.bind(this)();
+                }
             }
 
-            if (state !== CONTROL_STATE.NONE)
-              { update(); }
+            if (state !== CONTROL_STATE.NONE) {
+                update();
+            }
         };
     }());
 
     var onMouseDown = function (event) {
-        if (this.enabled === false) return;
-        event.preventDefault();
+        player.stop().then(() => {
+            if (this.enabled === false) return;
 
-        quatGlobe.set(0, 0, 0, 1);
+            event.preventDefault();
 
-        snapShotCamera.shot(this.camera);
+            snapShotCamera.shot(this.camera);
 
-        if (event.button === this.mouseButtons.PANORAMIC) {
-            if (this.enableRotate === false) return;
+            if (event.button === this.mouseButtons.PANORAMIC) {
+                if (this.enableRotate === false) return;
 
-            if (keyCtrl) {
-                state = CONTROL_STATE.ORBIT;
-            } else if (keyShift) {
-                state = CONTROL_STATE.PANORAMIC;
-            } else if (keyS) {
-                // If the key 'S' is down, the engine selects node under mouse
-                selectClick.mouse = new THREE.Vector2(event.clientX - event.target.offsetLeft, event.clientY - event.target.offsetTop);
+                if (keyCtrl) {
+                    state = CONTROL_STATE.ORBIT;
+                } else if (keyShift) {
+                    state = CONTROL_STATE.PANORAMIC;
+                } else if (keyS) {
+                    // If the key 'S' is down, the engine selects node under mouse
+                    selectClick.mouse = new THREE.Vector2(event.clientX - event.target.offsetLeft, event.clientY - event.target.offsetTop);
 
-                domElement.dispatchEvent(selectClick);
-            } else {
-                state = CONTROL_STATE.MOVE_GLOBE;
+                    domElement.dispatchEvent(selectClick);
+                } else {
+                    snapShotCamera.shot(this.camera);
 
-                snapShotCamera.shot(this.camera);
+                    ptScreenClick.x = event.clientX - event.target.offsetLeft;
+                    ptScreenClick.y = event.clientY - event.target.offsetTop;
 
-                ptScreenClick.x = event.clientX - event.target.offsetLeft;
-                ptScreenClick.y = event.clientY - event.target.offsetTop;
+                    var point = getPickingPosition(ptScreenClick);
+                    lastRotation = [];
+                    // update tangent sphere which passes through the point
+                    if (point) {
+                        ctrl.range = this.getRange();
+                        updateSpherePicking.bind(this)(point, ptScreenClick);
+                        state = CONTROL_STATE.MOVE_GLOBE;
+                    }
+                }
 
-                var point = getPickingPosition(ptScreenClick);
+                rotateStart.set(event.clientX - event.target.offsetLeft, event.clientY - event.target.offsetTop);
+            } else if (event.button === this.mouseButtons.ZOOM) {
+                if (this.enableZoom === false) return;
 
-                // update tangent sphere which passes through the point
-                if (point)
-                  { updateSpherePicking.bind(this)(point, ptScreenClick); }
+                state = CONTROL_STATE.DOLLY;
+
+                dollyStart.set(event.clientX - event.target.offsetLeft, event.clientY - event.target.offsetTop);
+            } else if (event.button === this.mouseButtons.PAN) {
+                if (this.enablePan === false) return;
+
+                state = CONTROL_STATE.PAN;
+
+                panStart.set(event.clientX - event.target.offsetLeft, event.clientY - event.target.offsetTop);
             }
 
-            rotateStart.set(event.clientX - event.target.offsetLeft, event.clientY - event.target.offsetTop);
-        } else if (event.button === this.mouseButtons.ZOOM) {
-            if (this.enableZoom === false) return;
-
-            state = CONTROL_STATE.DOLLY;
-
-            dollyStart.set(event.clientX - event.target.offsetLeft, event.clientY - event.target.offsetTop);
-        } else if (event.button === this.mouseButtons.PAN) {
-            if (this.enablePan === false) return;
-
-            state = CONTROL_STATE.PAN;
-
-            panStart.set(event.clientX - event.target.offsetLeft, event.clientY - event.target.offsetTop);
-        }
-
-        if (state !== CONTROL_STATE.NONE) {
-            this.domElement.addEventListener('mousemove', _handlerMouseMove, false);
-            this.domElement.addEventListener('mouseup', _handlerMouseUp, false);
-            this.dispatchEvent(this.startEvent);
-        }
+            if (state !== CONTROL_STATE.NONE) {
+                this.domElement.addEventListener('mousemove', _handlerMouseMove, false);
+                this.domElement.addEventListener('mouseup', _handlerMouseUp, false);
+                this.dispatchEvent(this.startEvent);
+            }
+        });
     };
 
-    var onDblClick = function ()
-    {
-        // state = CONTROL_STATE.ORBIT;
-        // scale = 0.3333;
-        // update();
-        // state = CONTROL_STATE.NONE;
+    var ondblclick = function (event) {
+        if (!keyCtrl && !keyShift) {
+            ptScreenClick.x = event.clientX - event.target.offsetLeft;
+            ptScreenClick.y = event.clientY - event.target.offsetTop;
+
+            const point = getPickingPosition(ptScreenClick);
+
+            if (point) {
+                animatedScale = 0.6;
+                this.setCenter(point, true);
+            }
+        }
     };
 
     var onMouseUp = function (/* event */) {
@@ -734,11 +864,23 @@ function GlobeControls(camera, domElement, engine) {
         this.domElement.removeEventListener('mouseup', _handlerMouseUp, false);
         this.dispatchEvent(this.endEvent);
 
-        updateGlobeTarget.bind(this)();
-        state = CONTROL_STATE.NONE;
+        if (this.enableDamping) {
+            if (state === CONTROL_STATE.ORBIT && (sphericalDelta.theta > EPS || sphericalDelta.phi > EPS)) {
+                player.startAnimation(OrbitDamping).then(() => { this.stopAnimation(); });
+            } else if (state === CONTROL_STATE.MOVE_GLOBE && lastRotation.length === 2 && !(lastRotation[1].equals(lastRotation[0]))) {
+                ctrl.qDelta.setFromUnitVectors(lastRotation[1], lastRotation[0]);
+                player.startAnimation(animationDampingMove).then(() => { this.stopAnimation(); });
+            } else {
+                updateGlobeTarget.bind(this)();
+            }
+        } else {
+            updateGlobeTarget.bind(this)();
+        }
     };
 
     var onMouseWheel = function (event) {
+        player.stop();
+
         if (this.enabled === false || this.enableZoom === false || state !== CONTROL_STATE.NONE) return;
 
         event.preventDefault();
@@ -746,13 +888,11 @@ function GlobeControls(camera, domElement, engine) {
 
         var delta = 0;
 
+        // WebKit / Opera / Explorer 9
         if (event.wheelDelta !== undefined) {
- // WebKit / Opera / Explorer 9
-
             delta = event.wheelDelta;
+        // Firefox
         } else if (event.detail !== undefined) {
- // Firefox
-
             delta = -event.detail;
         }
 
@@ -775,7 +915,6 @@ function GlobeControls(camera, domElement, engine) {
         if (state === CONTROL_STATE.PAN)
         {
             updateGlobeTarget.bind(this)();
-            state = CONTROL_STATE.NONE;
         }
 
         keyCtrl = false;
@@ -784,51 +923,53 @@ function GlobeControls(camera, domElement, engine) {
     };
 
     var onKeyDown = function (event) {
-        if (this.enabled === false || this.enableKeys === false || this.enablePan === false) return;
-        keyCtrl = false;
-        keyShift = false;
+        player.stop().then(() => {
+            if (this.enabled === false || this.enableKeys === false || this.enablePan === false) return;
+            keyCtrl = false;
+            keyShift = false;
 
-        switch (event.keyCode) {
-            case CONTROL_KEYS.UP:
-                this.mouseToPan(0, this.keyPanSpeed);
-                state = CONTROL_STATE.PAN;
-                update();
-                break;
-            case CONTROL_KEYS.BOTTOM:
-                this.mouseToPan(0, -this.keyPanSpeed);
-                state = CONTROL_STATE.PAN;
-                update();
-                break;
-            case CONTROL_KEYS.LEFT:
-                this.mouseToPan(this.keyPanSpeed, 0);
-                state = CONTROL_STATE.PAN;
-                update();
-                break;
-            case CONTROL_KEYS.RIGHT:
-                this.mouseToPan(-this.keyPanSpeed, 0);
-                state = CONTROL_STATE.PAN;
-                update();
-                break;
-            // TODO Why space key, looking for movement
-            case CONTROL_KEYS.SPACE:
-                space = !space;
-                // this.updateTarget();
-                update();
-                break;
-            case CONTROL_KEYS.CTRL:
-                // computeVectorUp();
-                keyCtrl = true;
-                break;
-            case CONTROL_KEYS.SHIFT:
-                // computeVectorUp();
-                keyShift = true;
-                break;
-            case CONTROL_KEYS.S:
-                // WARNING loop !!!
-                keyS = true;
-                break;
+            switch (event.keyCode) {
+                case CONTROL_KEYS.UP:
+                    this.mouseToPan(0, this.keyPanSpeed);
+                    state = CONTROL_STATE.PAN;
+                    update();
+                    break;
+                case CONTROL_KEYS.BOTTOM:
+                    this.mouseToPan(0, -this.keyPanSpeed);
+                    state = CONTROL_STATE.PAN;
+                    update();
+                    break;
+                case CONTROL_KEYS.LEFT:
+                    this.mouseToPan(this.keyPanSpeed, 0);
+                    state = CONTROL_STATE.PAN;
+                    update();
+                    break;
+                case CONTROL_KEYS.RIGHT:
+                    this.mouseToPan(-this.keyPanSpeed, 0);
+                    state = CONTROL_STATE.PAN;
+                    update();
+                    break;
+                // TODO Why space key, looking for movement
+                case CONTROL_KEYS.SPACE:
+                    space = !space;
+                    // this.updateTarget();
+                    update();
+                    break;
+                case CONTROL_KEYS.CTRL:
+                    // computeVectorUp();
+                    keyCtrl = true;
+                    break;
+                case CONTROL_KEYS.SHIFT:
+                    // computeVectorUp();
+                    keyShift = true;
+                    break;
+                case CONTROL_KEYS.S:
+                    // WARNING loop !!!
+                    keyS = true;
+                    break;
 
-        }
+            }
+        });
     };
 
     var onTouchStart = function (event) {
@@ -958,13 +1099,21 @@ function GlobeControls(camera, domElement, engine) {
         keyS = false;
     };
 
+    this.stopAnimation = function () {
+        lastRotation.splice(0);
+        ctrl.progress = 0;
+        updateGlobeTarget.bind(this)();
+    };
+
     // update object camera position
     this.updateCameraTransformation = function (controlState)
     {
+        const d = this.enableDamping;
+        this.enableDamping = false;
         state = controlState || CONTROL_STATE.ORBIT;
         update();
-        state = CONTROL_STATE.NONE;
         updateGlobeTarget.bind(this)();
+        this.enableDamping = d;
     };
 
     this.dispose = function () {
@@ -991,12 +1140,15 @@ function GlobeControls(camera, domElement, engine) {
     }, false);
     this.domElement.addEventListener('mousedown', onMouseDown.bind(this), false);
     this.domElement.addEventListener('mousewheel', onMouseWheel.bind(this), false);
-    this.domElement.addEventListener('dblclick', onDblClick.bind(this), false);
+    this.domElement.addEventListener('dblclick', ondblclick.bind(this), false);
     this.domElement.addEventListener('DOMMouseScroll', onMouseWheel.bind(this), false); // firefox
 
     this.domElement.addEventListener('touchstart', onTouchStart.bind(this), false);
     this.domElement.addEventListener('touchend', onTouchEnd.bind(this), false);
     this.domElement.addEventListener('touchmove', onTouchMove.bind(this), false);
+
+    // player
+    this.domElement.addEventListener('frameAnimation', update.bind(this), false);
 
     // TODO: Why windows
     window.addEventListener('keydown', onKeyDown.bind(this), false);
@@ -1032,14 +1184,53 @@ GlobeControls.prototype.constructor = GlobeControls;
 // # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 // API Function
 
-GlobeControls.prototype.setTilt = function (tilt) {
-    sphericalDelta.phi = (tilt * Math.PI / 180 - this.getTiltRad());
-    this.updateCameraTransformation();
+GlobeControls.prototype.setTilt = function (tilt, isAnimated) {
+    const deltaPhi = (tilt * Math.PI / 180 - this.getTiltRad());
+    return this.moveOrbitalPosition(0, 0, deltaPhi, isAnimated);
 };
 
-GlobeControls.prototype.setHeading = function (heading) {
-    sphericalDelta.theta = (heading * Math.PI / 180 - this.getHeadingRad());
-    this.updateCameraTransformation();
+GlobeControls.prototype.setHeading = function (heading, isAnimated) {
+    const deltaTheta = (heading * Math.PI / 180 - this.getHeadingRad());
+    return this.moveOrbitalPosition(0, deltaTheta, 0, isAnimated);
+};
+
+GlobeControls.prototype.setRange = function (pRange, isAnimated) {
+    const deltaRange = pRange - this.getRange();
+    return this.moveOrbitalPosition(deltaRange, 0, 0, isAnimated);
+};
+
+const destSpherical = new THREE.Spherical();
+
+GlobeControls.prototype.setOrbitalPosition = function (range, heading, tilt, isAnimated) {
+    const deltaPhi = ((tilt || this.getTilt()) * Math.PI / 180 - this.getTiltRad());
+    const deltaTheta = ((heading || this.getHeading()) * Math.PI / 180 - this.getHeadingRad());
+    const deltaRange = (range || this.getRange()) - this.getRange();
+    return this.moveOrbitalPosition(deltaRange, deltaTheta, deltaPhi, isAnimated);
+};
+
+GlobeControls.prototype.moveOrbitalPosition = function (deltaRange, deltaTheta, deltaPhi, isAnimated) {
+    const range = deltaRange + this.getRange();
+    if (isAnimated) {
+        destSpherical.theta = deltaTheta + spherical.theta;
+        destSpherical.phi = deltaPhi + spherical.phi;
+        sphericalTo.radius = range;
+        sphericalTo.theta = deltaTheta / (animationOrbit.duration - 1);
+        sphericalTo.phi = deltaPhi / (animationOrbit.duration - 1);
+        state = CONTROL_STATE.ORBIT;
+        return player.startAnimation(animationOrbit).then(() => {
+            if (player.isEnded()) {
+                this.moveOrbitalPosition(0, destSpherical.theta - spherical.theta, destSpherical.phi - spherical.phi);
+            }
+            this.stopAnimation();
+        });
+    }
+    else {
+        sphericalDelta.theta = deltaTheta;
+        sphericalDelta.phi = deltaPhi;
+        orbit.scale = range / this.getRange();
+        this.updateCameraTransformation();
+        return new Promise((r) => { r(); });
+    }
 };
 
 /**
@@ -1051,24 +1242,33 @@ GlobeControls.prototype.getTargetCameraPosition = function () {
     return globeTarget.position;
 };
 
-GlobeControls.prototype.setCenter = function (position) {
-    var center = this.getTargetCameraPosition();
+GlobeControls.prototype.setCenter = function (position, isAnimated) {
+    const center = this.getTargetCameraPosition();
 
     snapShotCamera.shot(this.camera);
 
     ptScreenClick.x = this.domElement.width / 2;
     ptScreenClick.y = this.domElement.height / 2;
 
-    var vFrom = center.clone().normalize();
-    var vTo = position.normalize();
-    quatGlobe.setFromUnitVectors(vFrom, vTo);
+    const vFrom = center.clone().normalize();
+    const vTo = position.normalize();
 
-    this.updateCameraTransformation(CONTROL_STATE.MOVE_GLOBE);
-};
-
-GlobeControls.prototype.setRange = function (pRange) {
-    scale = pRange / this.getTargetCameraPosition().distanceTo(this.camera.position);
-    this.updateCameraTransformation();
+    if (isAnimated) {
+        ctrl.qDelta.setFromUnitVectors(vFrom, vTo);
+        if (position.range) {
+            animatedScale = 1.0 - position.range / this.getRange();
+        }
+        state = CONTROL_STATE.MOVE_GLOBE;
+        return player.startAnimation(animationZoomCenter).then(() => {
+            animatedScale = 0.0;
+            this.stopAnimation();
+        });
+    }
+    else {
+        quatGlobe.setFromUnitVectors(vFrom, vTo);
+        this.updateCameraTransformation(CONTROL_STATE.MOVE_GLOBE);
+        return new Promise((r) => { r(); });
+    }
 };
 
 GlobeControls.prototype.getRange = function () {
