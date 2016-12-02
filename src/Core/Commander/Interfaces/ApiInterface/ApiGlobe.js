@@ -155,6 +155,43 @@ ApiGlobe.prototype.addImageryLayersFromJSONArray = function (urls) {
     return Promise.all(proms).then(() => this.scene.getMap().layersConfiguration.getColorLayers());
 };
 
+ApiGlobe.prototype.addFeatureLayerFromJSON = function (url) {
+    return Fetcher.json(url).then((result) => {
+        this.addFeatureLayer(result);
+    });
+};
+
+ApiGlobe.prototype.addFeatureLayersFromJSONArray = function (urls) {
+    var proms = [];
+    for (var i = 0; i < urls.length; i++) {
+        proms.push(Fetcher.json(urls[i]));
+    }
+    return Promise.all(proms).then((values) => {
+        for (var i = 0; i < urls.length; i++) {
+            this.addFeatureLayer(values[i]);
+        }
+        return this.scene.getMap().layersConfiguration.getGeometryLayers();
+    });
+};
+
+ApiGlobe.prototype.addFeatureFromJSON = function (url) {
+    return Fetcher.json(url).then((result) => {
+        this.addFeature(result);
+    });
+};
+
+ApiGlobe.prototype.addFeaturesFromJSONArray = function (urls) {
+    var proms = [];
+    for (var i = 0; i < urls.length; i++) {
+        proms.push(Fetcher.json(urls[i]));
+    }
+    return Promise.all(proms).then((values) => {
+        for (var i = 0; i < urls.length; i++) {
+            this.addFeature(values[i]);
+        }
+    });
+};
+
 ApiGlobe.prototype.moveLayerUp = function (layerId) {
     this.scene.getMap().layersConfiguration.moveLayerUp(layerId);
     this.scene.getMap().updateLayersOrdering();
